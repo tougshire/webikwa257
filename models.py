@@ -544,7 +544,7 @@ class ArticleStaticTagsIndexPage(Page):
     included_tag_names_string = models.CharField("tags included", max_length=255, blank=True, help_text="A comma separated list of tags to be included in this page which can also be grouped - separate groups with semicolon")
     tag_titles_string = models.CharField("tag titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used instead of the tag names - not separated by group")
     group_titles_string = models.CharField("group titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used for tag groups")
-    full_body_groups = models.CharField("full body groups", max_length=30, blank=True, default="1",help_text="A comma separated list of the tag group numbers for which the full body instead of summary should be shown in an index page. '1' is the first group.  ex: '1,2'")
+    full_body_groups = models.CharField("full body groups", max_length=30, blank=True, default="1",help_text="A comma separated one-based list of the tag group numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third groups, the body will be shown instead of the summary")
     separate_tag_groups = models.BooleanField(default=True, help_text="If the ArticlePages should be separated by tag")
     show_tag_titles = models.BooleanField(default=True, help_text='If the tag name should be displayed as a title to accompany the ArticlePages')
     custom_css = models.TextField(blank=True, help_text="Custom css to be added to the html head section when this page is displayed")
@@ -575,10 +575,10 @@ class ArticleStaticTagsIndexPage(Page):
         context = super().get_context(request)
 
         full_body_groups=[]
-        full_body_group_pieces = [number for number in self.full_body_groups.split(',')]
+        full_body_group_pieces = [piece.strip() for piece in self.full_body_groups.split(',')]
         for piece in full_body_group_pieces:
             try:
-                full_body_groups.append(int(piece))
+                full_body_groups.append(piece)
             except ValueError as e:
                 pass
 

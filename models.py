@@ -874,6 +874,44 @@ class IcalendarPage(Page):
                 if uid_block.uid not in self.data:
                     uid_block.delete()
 
+    def get_context(self, request):
+
+        context=super().get_context(request)
+
+        cd_event={}
+
+        ical_string = self.data
+
+        try:
+            ical_calendar = icalendar.Calendar.from_ical(ical_string)
+        except ValueError:
+            print("ICAL Parse Error")
+            ical_calendar = None
+
+        if ical_calendar is not None:
+            for ical_event in ical_calendar.events:
+                if ical_event['UID'] == request.GET.get('uid'):
+                    cd_event["uid"] = ical_event['UID']
+                    cd_event["start"] = ical_event["DTSTART"].dt
+                    cd_event["start_type"] = type(cd_event["start"]).__name__
+                    cd_event["start_d"] = cd_event["start"].date() if cd_event["start_type"] == 'datetime' else cd_event["start"]
+                    cd_event["start_dt"] = cd_event["start"] if cd_event["start_type"] == 'datetime' else datetime.datetime(cd_event["start"].year, cd_event["start"].month, cd_event["start"].day, tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
+                    cd_event["end"] =ical_event["DTEND"].dt
+
+                    try:
+                        cd_event["summary"] = ical_event["SUMMARY"]
+                    except KeyError:
+                        cd_event["summary"] = ""
+                    try:
+                        cd_event["description"] = ical_event["DESCRIPTION"]
+                    except KeyError:
+                        cd_event["description"] = ""
+        context['event'] = cd_event
+
+        return context
+
+
+
 class IcalendarLinkPage(Orderable, models.Model):
 
     icalendar=ParentalKey(IcalendarPage, on_delete=models.CASCADE, null=True, related_name="uid_links")

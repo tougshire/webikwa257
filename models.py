@@ -135,8 +135,6 @@ class ArticleIndexPage(Page):
 
         context['sidebars'] = get_sidebars(request)
 
-        context["og_url"] = settings.OG_URL
-
         try:
             context["og_url"] = settings.OG_URL
         except AttributeError:

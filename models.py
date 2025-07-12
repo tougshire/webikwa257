@@ -135,11 +135,6 @@ class ArticleIndexPage(Page):
 
         context['sidebars'] = get_sidebars(request)
 
-        try:
-            context["og_url"] = settings.OG_URL
-        except AttributeError:
-            pass
-
         return context
 
 class IcalendarIndexPage(Page):
@@ -313,6 +308,12 @@ class ArticlePage(BaseArticlePage):
 
             if not tag.name[0] == '_':
                 context['visible_tags'].append(tag)
+
+        try:
+            context["og_url"] = settings.OG_URL
+        except AttributeError:
+            print("tp257bi11", "Attribute Error")
+        print("tp257bi12", context["og_url"])
 
 
         return context

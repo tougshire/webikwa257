@@ -312,9 +312,7 @@ class ArticlePage(BaseArticlePage):
         try:
             context["og_url"] = settings.OG_URL
         except AttributeError:
-            print("tp257bi11", "Attribute Error")
-        print("tp257bi12", context["og_url"])
-
+            pass
 
         return context
 
@@ -342,7 +340,6 @@ class IcalCombinerPage(BaseArticlePage):
             [
                 FieldPanel('calendars'),
                 FieldPanel('ical_start_span_count'),
-#                FieldPanel('calendar_format'),
                 FieldPanel('calendar_dt_format'),
 
             ],
@@ -360,6 +357,7 @@ class IcalCombinerPage(BaseArticlePage):
             ical_inputs = [ int(num) if num.strip().isnumeric() else None for num in self.ical_start_span_count.split(",")]
             cd_events = []
             cd_events_grouped = {}
+            calendar_refs = []
 
             try:
                 start_input = int(ical_inputs[0])
@@ -381,9 +379,9 @@ class IcalCombinerPage(BaseArticlePage):
             end_date = start_date + datetime.timedelta(span_input)
 
             for ical in self.calendars.all():
-
                 ical_string = ical.data
                 uidlinks={}
+                calendar_refs.append({"slug":ical.slug, "title":ical.title })
         
                 for link in ical.uid_links.all():
                     uidlinks[link.uid]=link.url
@@ -405,6 +403,7 @@ class IcalCombinerPage(BaseArticlePage):
                         cd_event = {}
                         uid = ical_event["UID"]
                         cd_event["uid"] = uid
+                        cd_event['calendar_slug'] = ical.slug
                         cd_event['calendar'] = ical.get_url()
                         cd_event["start"] = ical_event["DTSTART"].dt
                         cd_event["start_type"] = type(cd_event["start"]).__name__
@@ -452,6 +451,8 @@ class IcalCombinerPage(BaseArticlePage):
                 if len(dt_formats) > 1:
                     context['datetime_formats']['time'] = dt_formats[1]
             context['datetime_formats']['datetime'] = "{} {}".format(context['datetime_formats']['date'], context['datetime_formats']['time'])
+
+            context['calendar_refs'] = calendar_refs
 
         return context
 
@@ -845,7 +846,13 @@ class ArticleCommentPage(Page):
         FieldPanel('body'),
     ]
 
+
 class IcalendarPage(Page):
+
+    """
+    For retrieving events from a remote ical.  
+    To be included in an IcalCombinerPage instance which in turn would be included in a SidebarPage
+    """
 
     source = models.URLField("source", blank=True, help_text="The ics source which will copied to the data")
     data = models.TextField("body", blank=True, help_text="The ics data. If source is filled in, this will be overwritten. If you wish to edit this field, ensure the source field is blank")

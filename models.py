@@ -921,6 +921,9 @@ class IcalendarPage(Page):
                         cd_event["description"] = ""
         context['event'] = cd_event
 
+        context['sidebars'] = get_sidebars(request)
+
+
         return context
 
 
@@ -958,3 +961,4 @@ class IcalendarBlockPage(Orderable, models.Model):
     panels = [
         FieldPanel("uid"),
     ]
+

@@ -23,6 +23,7 @@ from wagtail.admin.panels import (
     InlinePanel,
     MultiFieldPanel,
     PageChooserPanel,
+    HelpPanel,
 
 )
 from wagtail.contrib.forms.utils import get_field_clean_name
@@ -45,6 +46,8 @@ from wagtail.search import index
 from wagtail.snippets.models import register_snippet
 
 from wagtailmarkdown.fields import MarkdownField
+
+from django.utils.html import format_html
 
 import markdown
 
@@ -236,6 +239,105 @@ class BaseArticlePage(Page):
         """
         return '-latest_revision_created_at'
  
+class ArticleStaticTagsIndexPage(Page):
+
+    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
+    included_tag_names_string = models.CharField("tags included", max_length=255, blank=True, help_text="A comma separated list of tags to be included in this page which can also be grouped - separate groups with semicolon")
+    tag_titles_string = models.CharField("tag titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used instead of the tag names - not separated by group")
+    group_titles_string = models.CharField("group titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used for tag groups")
+    full_body_groups = models.CharField("full body groups", max_length=30, blank=True, default="1",help_text="A comma separated one-based list of the tag group numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third groups, the body will be shown instead of the summary")
+    separate_tag_groups = models.BooleanField(default=True, help_text="If the ArticlePages should be separated by tag")
+    show_tag_titles = models.BooleanField(default=True, help_text='If the tag name should be displayed as a title to accompany the ArticlePages')
+    custom_css = models.TextField(blank=True, help_text="Custom css to be added to the html head section when this page is displayed")
+
+    content_panels = Page.content_panels + [
+
+
+        FieldPanel('show_pagetitle'),
+        MultiFieldPanel(
+            [
+                FieldPanel('included_tag_names_string'),
+                MultiFieldPanel([
+                    FieldPanel('tag_titles_string'),
+                    FieldPanel('group_titles_string'),
+                    FieldPanel('separate_tag_groups'),
+                ], heading="Tag Titles"),
+                FieldPanel('show_tag_titles'),
+                MultiFieldPanel([
+                    FieldPanel('full_body_groups'),
+                    FieldPanel('custom_css'),
+                ],heading="Formatting")
+            ]
+        )
+    ]
+
+    def get_context(self, request):
+
+        context = super().get_context(request)
+
+        full_body_groups=[]
+        full_body_group_pieces = [piece.strip() for piece in self.full_body_groups.split(',')]
+        for piece in full_body_group_pieces:
+            try:
+                full_body_groups.append(piece)
+            except ValueError as e:
+                pass
+
+        context['full_body_groups'] = full_body_groups
+
+        article_page_groups = []
+
+        included_tag_name_groups = self.included_tag_names_string.split(';')
+        tag_titles = re.split(r';|,', self.tag_titles_string ) if self.tag_titles_string > '' else []
+        group_titles = re.split(r';|,', self.group_titles_string ) if self.group_titles_string > '' else []
+
+        t = 0
+        for g in range(len(included_tag_name_groups)):
+            new_article_page_group = {'article_page_sets':[]}
+            if len(group_titles) > g:
+                if group_titles[g] > '':
+                    new_article_page_group['group_title'] = group_titles[g]
+            article_page_sets = []
+            included_tag_names = included_tag_name_groups[g].split(',')
+
+            for i in range(len(included_tag_names)):
+                included_tag_name = included_tag_names[i].strip()
+                new_article_page_set={}
+
+                new_article_page_set['article_pages'] = ArticlePage.objects.live().filter(tags__name=included_tag_name)
+
+                if new_article_page_set['article_pages']:
+                    new_article_page_set['tagname'] = included_tag_name
+                    tag_title = tag_titles[t].strip() if len(tag_titles ) > t  else included_tag_name if not included_tag_name[0] == "_" else " "
+                    new_article_page_set['title'] = tag_title
+                    article_page_sets.append(new_article_page_set)
+
+                t = t + 1
+
+
+            if article_page_sets:
+                new_article_page_group['article_page_sets']=article_page_sets
+
+                article_page_groups.append(new_article_page_group)
+
+        context['article_page_groups'] = article_page_groups
+
+        context['sidebars'] = get_sidebars(request)
+
+        # context['first_group_is_special'] = self.first_group_is_special
+
+        return context
+
+class ArticleStaticTagsHelpPanel(HelpPanel):
+
+    def on_model_bound(self):
+
+        astips = ArticleStaticTagsIndexPage.objects.all()
+        content = "<table class='static-tags-list>"
+        for page in astips:
+            content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string)
+        content = content + "</table>"
+        self.content = content
 
 class ArticlePage(BaseArticlePage):
 
@@ -255,6 +357,7 @@ class ArticlePage(BaseArticlePage):
                 FieldPanel('date'),
                 FieldPanel('authors', widget=forms.CheckboxSelectMultiple),
                 FieldPanel('tags'),
+                ArticleStaticTagsHelpPanel()
             ],
             heading="Article information"
         ),
@@ -545,94 +648,6 @@ class Author(models.Model):
     class Meta:
         verbose_name_plural = 'Authors'
 
-class ArticleStaticTagsIndexPage(Page):
-
-    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
-    included_tag_names_string = models.CharField("tags included", max_length=255, blank=True, help_text="A comma separated list of tags to be included in this page which can also be grouped - separate groups with semicolon")
-    tag_titles_string = models.CharField("tag titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used instead of the tag names - not separated by group")
-    group_titles_string = models.CharField("group titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used for tag groups")
-    full_body_groups = models.CharField("full body groups", max_length=30, blank=True, default="1",help_text="A comma separated one-based list of the tag group numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third groups, the body will be shown instead of the summary")
-    separate_tag_groups = models.BooleanField(default=True, help_text="If the ArticlePages should be separated by tag")
-    show_tag_titles = models.BooleanField(default=True, help_text='If the tag name should be displayed as a title to accompany the ArticlePages')
-    custom_css = models.TextField(blank=True, help_text="Custom css to be added to the html head section when this page is displayed")
-
-    content_panels = Page.content_panels + [
-
-
-        FieldPanel('show_pagetitle'),
-        MultiFieldPanel(
-            [
-                FieldPanel('included_tag_names_string'),
-                MultiFieldPanel([
-                    FieldPanel('tag_titles_string'),
-                    FieldPanel('group_titles_string'),
-                    FieldPanel('separate_tag_groups'),
-                ], heading="Tag Titles"),
-                FieldPanel('show_tag_titles'),
-                MultiFieldPanel([
-                    FieldPanel('full_body_groups'),
-                    FieldPanel('custom_css'),
-                ],heading="Formatting")
-            ]
-        )
-    ]
-
-    def get_context(self, request):
-
-        context = super().get_context(request)
-
-        full_body_groups=[]
-        full_body_group_pieces = [piece.strip() for piece in self.full_body_groups.split(',')]
-        for piece in full_body_group_pieces:
-            try:
-                full_body_groups.append(piece)
-            except ValueError as e:
-                pass
-
-        context['full_body_groups'] = full_body_groups
-
-        article_page_groups = []
-
-        included_tag_name_groups = self.included_tag_names_string.split(';')
-        tag_titles = re.split(r';|,', self.tag_titles_string ) if self.tag_titles_string > '' else []
-        group_titles = re.split(r';|,', self.group_titles_string ) if self.group_titles_string > '' else []
-
-        t = 0
-        for g in range(len(included_tag_name_groups)):
-            new_article_page_group = {'article_page_sets':[]}
-            if len(group_titles) > g:
-                if group_titles[g] > '':
-                    new_article_page_group['group_title'] = group_titles[g]
-            article_page_sets = []
-            included_tag_names = included_tag_name_groups[g].split(',')
-
-            for i in range(len(included_tag_names)):
-                included_tag_name = included_tag_names[i].strip()
-                new_article_page_set={}
-
-                new_article_page_set['article_pages'] = ArticlePage.objects.live().filter(tags__name=included_tag_name)
-
-                if new_article_page_set['article_pages']:
-                    new_article_page_set['tagname'] = included_tag_name
-                    tag_title = tag_titles[t].strip() if len(tag_titles ) > t  else included_tag_name if not included_tag_name[0] == "_" else " "
-                    new_article_page_set['title'] = tag_title
-                    article_page_sets.append(new_article_page_set)
-
-                t = t + 1
-
-
-            if article_page_sets:
-                new_article_page_group['article_page_sets']=article_page_sets
-
-                article_page_groups.append(new_article_page_group)
-
-        context['article_page_groups'] = article_page_groups
-
-        context['sidebars'] = get_sidebars(request)
-
-        # context['first_group_is_special'] = self.first_group_is_special
-
-        return context
 
 @register_setting
 class SiteSpecificImportantPages(BaseSiteSetting):

@@ -6,7 +6,8 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
 from taggit.models import Tag
-
+from django.templatetags.static import static
+from django.utils.html import format_html
 
 @hooks.register("register_icons")
 def register_icons(icons):
@@ -80,3 +81,4 @@ class TagsSnippetViewSet(SnippetViewSet):
     search_fields = ("name",)
 
 register_snippet(TagsSnippetViewSet)
+

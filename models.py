@@ -1,57 +1,56 @@
 import datetime
 import json
-from pathlib import Path
+import logging
 import re
 import sys
 import zoneinfo
-from django import forms
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-from django.utils.html import strip_tags
+from pathlib import Path
+
 import icalendar
+import markdown
 import nh3
 import recurring_ical_events
-from modelcluster.fields import ParentalKey, ParentalManyToManyField
-from modelcluster.contrib.taggit import ClusterTaggableManager
 import requests
+from django import forms
+from django.conf import settings
+from django.db import OperationalError, models
+from django.utils import timezone
+from django.utils.html import format_html, strip_tags
+from modelcluster.contrib.taggit import ClusterTaggableManager
+from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from taggit.models import TaggedItemBase
-
 from wagtail.admin.panels import (
     FieldPanel,
     FieldRowPanel,
+    HelpPanel,
     InlinePanel,
     MultiFieldPanel,
     PageChooserPanel,
-    HelpPanel,
-
 )
-from wagtail.contrib.forms.utils import get_field_clean_name
 from wagtail.contrib.forms.forms import FormBuilder
-from wagtail.contrib.forms.models import AbstractForm, AbstractEmailForm, AbstractFormField,FORM_FIELD_CHOICES
+from wagtail.contrib.forms.models import (
+    FORM_FIELD_CHOICES,
+    AbstractEmailForm,
+    AbstractForm,
+    AbstractFormField,
+)
 from wagtail.contrib.forms.panels import FormSubmissionsPanel
-
+from wagtail.contrib.forms.utils import get_field_clean_name
 from wagtail.contrib.settings.models import (
     BaseGenericSetting,
     BaseSiteSetting,
     register_setting,
 )
-
-from wagtail.fields import StreamField, RichTextField
 from wagtail.documents import get_document_model
-
-from wagtail.models import Page, Orderable
-
+from wagtail.fields import RichTextField, StreamField
+from wagtail.models import Orderable, Page
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
-
 from wagtailmarkdown.fields import MarkdownField
 
-from django.utils.html import format_html
-
-import markdown
-
 from .blocks import BodyStreamBlock
+
+logger = logging.getLogger(__name__)
 
 def get_sidebars(request):
     sidebars = []
@@ -332,11 +331,15 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
 
     def on_model_bound(self):
 
-        astips = ArticleStaticTagsIndexPage.objects.all()
         content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
         content = content + "<table>"
-        for page in astips:
-            content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string).replace(";","; ").replace(",",", ")
+        try:
+            astips = ArticleStaticTagsIndexPage.objects.all()
+            for page in astips:
+                content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string).replace(";","; ").replace(",",", ")
+        except OperationalError as err:  ##migration error
+            logger.critical(err)
+        
         content = content + "</table></div>"
         self.content = content
 

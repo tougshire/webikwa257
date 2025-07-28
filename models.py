@@ -337,8 +337,8 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
             astips = ArticleStaticTagsIndexPage.objects.all()
             for page in astips:
                 content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string).replace(";","; ").replace(",",", ")
-        except OperationalError as err:  ##migration error
-            logger.critical(err)
+        except OperationalError as err:  ## probably caused when initial migration not yet applied
+            logger.warning(err)
         
         content = content + "</table></div>"
         self.content = content

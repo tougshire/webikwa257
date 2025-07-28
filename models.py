@@ -333,10 +333,10 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
     def on_model_bound(self):
 
         astips = ArticleStaticTagsIndexPage.objects.all()
-        content = "<div class=\"w-tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
-        content = content + "<table class='static-tags-list'>"
+        content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
+        content = content + "<table>"
         for page in astips:
-            content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string)
+            content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string).replace(";","; ").replace(",",", ")
         content = content + "</table></div>"
         self.content = content
 

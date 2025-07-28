@@ -333,10 +333,11 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
     def on_model_bound(self):
 
         astips = ArticleStaticTagsIndexPage.objects.all()
-        content = "<table class='static-tags-list'>"
+        content = "<div class=\"w-tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
+        content = content + "<table class='static-tags-list'>"
         for page in astips:
             content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string)
-        content = content + "</table>"
+        content = content + "</table></div>"
         self.content = content
 
 class ArticlePage(BaseArticlePage):
@@ -357,10 +358,11 @@ class ArticlePage(BaseArticlePage):
                 FieldPanel('date'),
                 FieldPanel('authors', widget=forms.CheckboxSelectMultiple),
                 FieldPanel('tags'),
-                ArticleStaticTagsHelpPanel()
+                ArticleStaticTagsHelpPanel(),
             ],
             heading="Article information"
         ),
+
         FieldPanel('summary'),
         FieldPanel('body_md'),
         FieldPanel('body_sf'),

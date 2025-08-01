@@ -57,8 +57,7 @@ WAGTAILMARKDOWN = {
 - create a new article static tags index page
   - from the root page, create a new article static tags index page
   - name it "Featured Articles"
-  - under "Tags included" enter "\_f1,\_f2;\_f3,\_f4;\_f5" (don't include quotation marks a any point in these instructions unless specified)
-  - under "Full Body Groups", enter 1
+  - under "Tags included" enter "\_featured1,\_featured2;\_featured3,\_featured4;\_featured5" (don't include quotation marks a any point in these instructions unless specified)
   - publish the page
 - create a new redirect page
   - from root, create a new redirect page

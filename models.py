@@ -15,7 +15,7 @@ from django import forms
 from django.conf import settings
 from django.db import OperationalError, models
 from django.utils import timezone
-from django.utils.html import format_html, strip_tags
+from django.utils.html import format_html, mark_safe, strip_tags
 from modelcluster.contrib.taggit import ClusterTaggableManager
 from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from taggit.models import TaggedItemBase
@@ -329,19 +329,25 @@ class ArticleStaticTagsIndexPage(Page):
 
 class ArticleStaticTagsHelpPanel(HelpPanel):
 
-    def on_model_bound(self):
-
-        content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
-        content = content + "<table>"
-        try:
+    class BoundPanel(HelpPanel.BoundPanel):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
+            content = content + "<table>"
+#            try:
             astips = ArticleStaticTagsIndexPage.objects.all()
             for page in astips:
-                content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, page.included_tag_names_string).replace(";","; ").replace(",",", ")
-        except OperationalError as err:  ## probably caused when initial migration not yet applied
-            logger.warning(err, " This error may be resolved after running the next migration")
-            
-        content = content + "</table></div>"
-        self.content = content
+                tags = re.split(r"(?:,|;)\s*", page.included_tag_names_string)
+                tag_content=""
+                for tag in tags:
+                    tag_content=tag_content + format_html(" <span class=\"help_static_tag\">{}</span>", tag)
+                content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, mark_safe(tag_content))
+
+#            except OperationalError as err:  ## probably caused when initial migration not yet applied
+#                logger.warning(err, " This error may be resolved after running the next migration")
+                
+            content = content + "</table></div>"
+            self.content = content
 
 class ArticlePage(BaseArticlePage):
 

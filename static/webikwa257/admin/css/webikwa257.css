@@ -3,3 +3,11 @@
     border-spacing: 1em 0;
 
 }
+
+span.help_static_tag:after {
+    content: ', '
+}
+
+span.help_static_tag:last-child:after {
+    content: ''
+}

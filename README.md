@@ -13,6 +13,7 @@ Webikwa257 requires webikwa_templates, touglates and wagtail_modeladmin. If you'
 These instructions are written with the assumption that you're starting a new project
 
 - create a new Wagtail project (see [Wagtail's instructions](https://docs.wagtail.org/en/v6.2.1/getting_started/) )
+  - This will work if you stop after creating the superuser, but the rest of the tutorial covers features that might be useful 
 - pip install [wagtail-markdown](https://pypi.org/project/wagtail-markdown/)
 - pip install [wagtail_modeladmin](https://pypi.org/project/wagtail-modeladmin/)
 - pip install [recurring-ical-events](https://pypi.org/project/recurring-ical-events/)
@@ -20,14 +21,14 @@ These instructions are written with the assumption that you're starting a new pr
 - git clone [https://github.com/tougshire/touglates](https://github.com/tougshire/touglates)
 - git clone [https://github.com/tougshire/webikwa_templates](https://github.com/tougshire/webikwa_templates)
 - git clone [https://github.com/tougshire/webikwa257](https://github.com/tougshire/webikwa257)
-- add the following to INSTALLED_APPS:
-  - "wagtail.contrib.settings"
-  - "wagtail_modeladmin"
-  - "wagtailmarkdown"
+- add the following to INSTALLED_APPS in settings/base.py:
+  - "wagtail.contrib.settings",
+  - "wagtail_modeladmin",
+  - "wagtailmarkdown",
   - "wagtail.contrib.table_block",
-  - "touglates"
-  - "webikwa_templates"
-  - "webikwa257"
+  - "touglates",
+  - "webikwa_templates",
+  - "webikwa257",
 - Add the following to your settings:
 
 ```
@@ -52,16 +53,16 @@ WAGTAILMARKDOWN = {
   - publish the page
 - create a new article index page
   - using the "add child page" action next to the word "Root", create a new article index page
-  - name it "Articles"
+  - title it "Articles"
   - publish the page
 - create a new article static tags index page
   - from the root page, create a new article static tags index page
-  - name it "Featured Articles"
-  - under "Tags included" enter "\_featured1,\_featured2;\_featured3,\_featured4;\_featured5" (don't include quotation marks a any point in these instructions unless specified)
+  - title it "Featured Articles"
+  - under "Tags included" enter: \_featured1,\_featured2;\_featured3,\_featured4;\_featured5
   - publish the page
 - create a new redirect page
   - from root, create a new redirect page
-  - name it "Home"
+  - title it "Home"
   - for the target page, choose the featured articles page
   - publish the page
 - move the featured articles page and the articles index page under the home page

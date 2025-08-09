@@ -6,11 +6,13 @@ import sys
 import zoneinfo
 from pathlib import Path
 
+
 import icalendar
 import markdown
 import nh3
 import recurring_ical_events
 import requests
+import uuid
 from django import forms
 from django.conf import settings
 from django.db import OperationalError, models
@@ -434,7 +436,8 @@ class IcalCombinerPage(BaseArticlePage):
 
     CALENDAR_FORMAT_CHOICES=[
 #        ("EVLS", "event list"),
-        ("DTLS", "date list")
+        ("DTLS", "date list"),
+        ("GRID", "calendar grid")
     ]
 
     calendars=ParentalManyToManyField('IcalendarPage', blank=True)
@@ -442,7 +445,7 @@ class IcalCombinerPage(BaseArticlePage):
     calendar_format = models.CharField("calendar format", max_length=4, default="DTLS", choices=CALENDAR_FORMAT_CHOICES, help_text="(choices unavailable for now) The format for how the events are displayed")
     calendar_dt_format = models.CharField("calendar date and time formats", max_length=40, default="D Y M d|g:iA", help_text="The date and time formats separated by a bar ex: D Y M d|g:iA")
 
-    parent_page_types = ["SidebarPage"]
+    parent_page_types = ["SidebarPage", 'ArticleSingularPage']
 
     class Meta:
         verbose_name = "iCalendar Combiner"
@@ -499,6 +502,9 @@ class IcalCombinerPage(BaseArticlePage):
         
                 for link in ical.uid_links.all():
                     uidlinks[link.uid]=link.url
+
+                for ical_event in ical.ical_events.all():
+                    uidlinks[ical_event.uid]=ical_event.url
 
                 uidblocks=[]
                 for block in ical.uid_blocks.all():
@@ -567,6 +573,12 @@ class IcalCombinerPage(BaseArticlePage):
             context['datetime_formats']['datetime'] = "{} {}".format(context['datetime_formats']['date'], context['datetime_formats']['time'])
 
             context['calendar_refs'] = calendar_refs
+
+            caldate = start_date
+            context['calendar_dates'] = [caldate]
+            for i in range(span_input):
+                caldate = caldate + datetime.timedelta(days=1)
+                context["calendar_dates"].append(caldate)
 
         return context
 
@@ -890,6 +902,7 @@ class IcalendarPage(Page):
     content_panels = Page.content_panels + [
         FieldPanel('source'),
         FieldPanel('data'),
+        InlinePanel('ical_events'),
         InlinePanel('uid_links'),
         InlinePanel('uid_blocks'),
         FieldPanel('delete_stale_links_blocks'),
@@ -902,6 +915,14 @@ class IcalendarPage(Page):
         if self.source:
             calendar_response = requests.get(self.source)    
             self.data = calendar_response.text
+
+        for ical_event in self.ical_events.all():
+            print('tp2588g20', ical_event.uid)
+            if ical_event.uid not in self.data:
+                print('tp2588g21', ical_event.uid)
+                pre = self.data[:self.data.rfind("END:VEVENT") + 10]
+                post = self.data[self.data.rfind("END:VEVENT") + 12:]
+                self.data =  pre + "\n" + ical_event.get_vevent() + post
 
         super().save(*args, **kwargs)
 
@@ -952,6 +973,80 @@ class IcalendarPage(Page):
 
         return context
 
+class IcalendarEvent(Orderable, models.Model):
+
+    icalendar=ParentalKey(IcalendarPage, on_delete=models.CASCADE, null=True, related_name="ical_events")
+    summary = models.CharField(max_length=128, help_text="The summary, also used as the title, of the event")
+    description = models.TextField(blank=True, help_text="Details about the event. This won't be seen if the event is linked to an article or url")
+    article = ParentalKey(ArticlePage, blank=True, null=True, on_delete=models.SET_NULL, help_text="An article to link to.  Ensure the url field is blank to use this field")
+    uid=models.CharField(max_length=120,help_text="The UID of the event from ics data")
+    url=models.CharField(max_length=200, blank=True, help_text="The URL to link to. Leave blank if linking to an article using the Article field")
+    date_start=models.DateField('start date', default=datetime.date.today, help_text="When the event starts")
+    time_start=models.TimeField('start time', blank=True, help_text='Start Time - Leave blank for all day events')
+    date_end=models.DateField('end date', default=datetime.date.today, help_text="When the event ends")
+    time_end=models.TimeField('end time', blank=True, help_text='End Time - Leave blank for all day events')
+    use_time = models.BooleanField('use time', default=True, help_text="Use the time field (Uncheck for all day events)" )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    panels = [
+        FieldPanel("summary"),
+        FieldPanel("description"),
+        MultiFieldPanel([
+            FieldPanel("article"),
+            FieldPanel("url"),
+        ], heading="Link"),
+        MultiFieldPanel([
+            FieldPanel("date_start"),
+            FieldPanel("date_end"),
+            FieldPanel("use_time"),
+            FieldPanel("time_start"),
+            FieldPanel("time_end"),
+        ], heading="Start/End")
+    ]
+
+    def get_date_or_datetime(self, the_date, the_time=None):
+        date_format="%Y%m%d"
+        time_format="%H%M"
+        ddt=""
+
+        ddt = the_date.strftime(date_format)
+        if the_time is not None:
+            ddt = ddt + "T" + the_time.strftime(time_format) + "00"
+
+        return ddt
+
+    def get_vevent(self):
+        vevent="BEGIN:VEVENT\n"
+        vevent=vevent + f"UID:{ self.uid }\n"
+        vevent=vevent + f"SUMMARY:{ self.summary }\n"
+        if self.description:
+            vevent=vevent + f"DESCRIPTION:{ self.description }\n"
+        if self.use_time:
+            vevent = vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start, self.time_start) }\n"
+            vevent = vevent + f"DTEND:{ self.get_date_or_datetime(self.date_end, self.time_end) }\n"
+        else:
+            vevent = vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start) }\n"
+            vevent = vevent + f"DTEND:{ self.get_date_or_datetime(self.date_end) }\n"
+
+        vevent = vevent + f"DTSTAMP:{ self.created_at.strftime('%Y%m%dT%H%m%S') }\n"
+        vevent = vevent + "STATUS:CONFIRMED" + "\n"
+
+        vevent=vevent + "END:VEVENT\n"
+
+        print('tp2588l12', vevent)
+
+        return vevent
+
+    def save(self, *args, **kwargs):
+
+        if self.uid == "":
+            self.uid = f"{ uuid.uuid1().hex }@{ settings.WAGTAIL_SITE_NAME }"
+
+        if self.article:
+            self.url = self.article.url
+
+        return super().save(*args, **kwargs)
 
 
 class IcalendarLinkPage(Orderable, models.Model):
@@ -961,14 +1056,6 @@ class IcalendarLinkPage(Orderable, models.Model):
     uid=models.CharField(max_length=120,help_text="The UID of the event from ics data")
     url=models.CharField(max_length=200, blank=True, help_text="The URL to link to. Leave blank if linking to an article using the Article field")
     
-    def save(self, *args, **kwargs):
-
-        if self.article:
-            self.url = self.article.url
-
-        return super().save(*args, **kwargs)
-
-
     panels = [
         FieldPanel("uid"),
         MultiFieldPanel([
@@ -977,6 +1064,13 @@ class IcalendarLinkPage(Orderable, models.Model):
         ], heading="Link")
 
     ]
+
+    def save(self, *args, **kwargs):
+
+        if self.article:
+            self.url = self.article.url
+
+        return super().save(*args, **kwargs)
 
 
 

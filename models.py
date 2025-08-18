@@ -4,7 +4,6 @@ import logging
 import re
 import sys
 import zoneinfo
-from pathlib import Path
 
 
 import icalendar
@@ -883,7 +882,20 @@ class ArticleCommentPage(Page):
         ),
         FieldPanel('body'),
     ]
+def get_timezone():
 
+    return settings.TIME_ZONE if hasattr(settings, "TIME_ZONE") else "Etc/UTC"
+
+def get_empty_ical():
+    empty_ical = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//{ settings.WAGTAIL_SITE_NAME }//{ timezone.now().strftime("%Y%m%d%H%M%S") }//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+END:VCALENDAR
+"""
+
+    return empty_ical
 
 class IcalendarPage(Page):
 
@@ -893,10 +905,9 @@ class IcalendarPage(Page):
     """
 
     source = models.URLField("source", blank=True, help_text="The ics source which will copied to the data")
-    data = models.TextField("body", blank=True, help_text="The ics data. If source is filled in, this will be overwritten. If you wish to edit this field, ensure the source field is blank")
+    data = models.TextField("body", blank=True, default=get_empty_ical, help_text="The ics data. If source is filled in, this will be overwritten. If you wish to edit this field, ensure the source field is blank")
     is_safe = models.BooleanField("is safe", default=False, help_text="If it's certain that the code from the remote calendar is safe.  This can be dangerous.  Know that you can trust the source before enabling")
     delete_stale_links_blocks = models.BooleanField("delete stale links & blocks", default=True, help_text="Upon save, automaticall delete links and blocks for events that are no longer on this calendar")
-
     parent_page_types = ["IcalendarIndexPage"]
 
     content_panels = Page.content_panels + [
@@ -912,19 +923,20 @@ class IcalendarPage(Page):
 
     def save(self, *args, **kwargs):
 
+        # pre-save to get a PK if new, and update children
+        super().save(*args, **kwargs)
+
+        #create the ics calendar
         if self.source:
             calendar_response = requests.get(self.source)    
             self.data = calendar_response.text
 
+        #add ical_event objects to the ics data
         for ical_event in self.ical_events.all():
-            print('tp2588g20', ical_event.uid)
             if ical_event.uid not in self.data:
-                print('tp2588g21', ical_event.uid)
-                pre = self.data[:self.data.rfind("END:VEVENT") + 10]
-                post = self.data[self.data.rfind("END:VEVENT") + 12:]
-                self.data =  pre + "\n" + ical_event.get_vevent() + post
-
-        super().save(*args, **kwargs)
+                data = self.data
+                insert_point = data.find("END:VCALENDAR")
+                self.data =  data[:insert_point] + ical_event.get_vevent() + data[insert_point:]
 
         if self.delete_stale_links_blocks:
             for uid_link in self.uid_links.all():
@@ -934,44 +946,99 @@ class IcalendarPage(Page):
                 if uid_block.uid not in self.data:
                     uid_block.delete()
 
+        super().save(*args, **kwargs)
+
     def get_context(self, request):
 
         context=super().get_context(request)
 
-        cd_event={}
+        cd_events = []
+        cd_events_grouped = {}
+        calendar_refs = []
 
         ical_string = self.data
+        uidlinks={}
+        calendar_refs.append({"slug":self.slug, "title":self.title })
+
+        for link in self.uid_links.all():
+            uidlinks[link.uid]=link.url
+
+        for ical_event in self.ical_events.all():
+            uidlinks[ical_event.uid]=ical_event.url
+
+        uidblocks=[]
+        for block in self.uid_blocks.all():
+            if block.uid > "":
+                uidblocks.append(block.uid)
 
         try:
             ical_calendar = icalendar.Calendar.from_ical(ical_string)
         except ValueError:
             print("ICAL Parse Error")
-            ical_calendar = None
 
-        if ical_calendar is not None:
-            for ical_event in ical_calendar.events:
-                if ical_event['UID'] == request.GET.get('uid'):
-                    cd_event["uid"] = ical_event['UID']
-                    cd_event["start"] = ical_event["DTSTART"].dt
-                    cd_event["start_type"] = type(cd_event["start"]).__name__
-                    cd_event["start_d"] = cd_event["start"].date() if cd_event["start_type"] == 'datetime' else cd_event["start"]
-                    cd_event["start_dt"] = cd_event["start"] if cd_event["start_type"] == 'datetime' else datetime.datetime(cd_event["start"].year, cd_event["start"].month, cd_event["start"].day, tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
-                    cd_event["end"] =ical_event["DTEND"].dt
+        ical_events = recurring_ical_events.of(ical_calendar).all()
+        for ical_event in ical_events:
+            if ical_event['UID'] not in uidblocks:
+                cd_event = {}
+                uid = ical_event["UID"]
+                cd_event["uid"] = uid
+                cd_event['calendar_slug'] = self.slug
+                cd_event['calendar'] = self.get_url()
+                cd_event["start"] = ical_event["DTSTART"].dt
+                cd_event["start_type"] = type(cd_event["start"]).__name__
+                cd_event["start_d"] = cd_event["start"].date() if cd_event["start_type"] == 'datetime' else cd_event["start"]
+                cd_event["start_dt"] = cd_event["start"] if cd_event["start_type"] == 'datetime' else datetime.datetime(cd_event["start"].year, cd_event["start"].month, cd_event["start"].day, tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
+                cd_event["end"] =ical_event["DTEND"].dt
 
-                    try:
-                        cd_event["summary"] = ical_event["SUMMARY"]
-                    except KeyError:
-                        cd_event["summary"] = ""
-                    try:
-                        cd_event["description"] = ical_event["DESCRIPTION"]
-                    except KeyError:
-                        cd_event["description"] = ""
-        context['event'] = cd_event
+                try:
+                    cd_event["summary"] = ical_event["SUMMARY"]
+                except KeyError:
+                    cd_event["summary"] = ""
+                try:
+                    cd_event["description"] = ical_event["DESCRIPTION"]
+                except KeyError:
+                    cd_event["description"] = ""
 
-        context['sidebars'] = get_sidebars(request)
+                if ical_event["UID"] in uidlinks:
+                    cd_event["link"] = uidlinks[ical_event["UID"]]
 
+                cd_events.append(cd_event)
+                if uid not in cd_events_grouped:
+                    cd_events_grouped[uid] = cd_event
+                    cd_events_grouped[uid]["starts"] = [ cd_event["start"] ]
+                else:
+                    cd_events_grouped[uid]["starts"].append( cd_event["start"])
+                    if cd_event["start"] < cd_events_grouped[uid]["start"]:
+                        cd_events_grouped[uid]["start"] = cd_event["start"]
+            
+        context["events"] = sorted(cd_events, key = lambda event: event["start_dt"])
+
+        cd_events_grouped_list = []
+        for uid in cd_events_grouped:
+            cd_events_grouped[uid]["starts"].sort()
+            cd_events_grouped_list.append(cd_events_grouped[uid])
+        context["events_grouped"] = sorted(cd_events_grouped_list, key=lambda event: event["start_d"])
+
+        context['datetime_formats'] = {'date':'D Y M d', 'time':'g:iA'}
+        # if self.calendar_dt_format:
+        #     dt_formats = self.calendar_dt_format.split('|')
+        #     context['datetime_formats']['date'] = dt_formats[0]
+        #     if len(dt_formats) > 1:
+        #         context['datetime_formats']['time'] = dt_formats[1]
+        context['datetime_formats']['datetime'] = "{} {}".format(context['datetime_formats']['date'], context['datetime_formats']['time'])
+
+        context['calendar_refs'] = calendar_refs
+
+        caldate = datetime.date.today()
+        context['calendar_dates'] = [caldate]
+        for i in range(100):
+            caldate = caldate + datetime.timedelta(days=1)
+            context["calendar_dates"].append(caldate)
 
         return context
+
+
+
 
 class IcalendarEvent(Orderable, models.Model):
 
@@ -1020,11 +1087,14 @@ class IcalendarEvent(Orderable, models.Model):
         vevent="BEGIN:VEVENT\n"
         vevent=vevent + f"UID:{ self.uid }\n"
         vevent=vevent + f"SUMMARY:{ self.summary }\n"
+
+        tz_insert = ";TZID=" + get_timezone() if get_timezone() else ""
+
         if self.description:
             vevent=vevent + f"DESCRIPTION:{ self.description }\n"
         if self.use_time:
-            vevent = vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start, self.time_start) }\n"
-            vevent = vevent + f"DTEND:{ self.get_date_or_datetime(self.date_end, self.time_end) }\n"
+            vevent = vevent + f"DTSTART{ tz_insert }:{ self.get_date_or_datetime(self.date_start, self.time_start) }\n"
+            vevent = vevent + f"DTEND{ tz_insert }:{ self.get_date_or_datetime(self.date_end, self.time_end) }\n"
         else:
             vevent = vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start) }\n"
             vevent = vevent + f"DTEND:{ self.get_date_or_datetime(self.date_end) }\n"
@@ -1033,8 +1103,6 @@ class IcalendarEvent(Orderable, models.Model):
         vevent = vevent + "STATUS:CONFIRMED" + "\n"
 
         vevent=vevent + "END:VEVENT\n"
-
-        print('tp2588l12', vevent)
 
         return vevent
 

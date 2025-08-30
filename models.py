@@ -155,11 +155,12 @@ class IcalendarIndexPage(Page):
 
         context = super().get_context(request)
 
-        iCalCombinerPages = iCalCombinerPage.objects.live()
+        IcalCombinerPages = IcalCombinerPage.objects.live()
 
-        context['iCalCombinerpages'] = iCalCombinerPages
+        context['IcalCombinerPages'] = IcalCombinerPages
 
         context['sidebars'] = get_sidebars(request)
+        
 
         return context
 
@@ -1010,7 +1011,10 @@ class IcalendarPage(Page):
                     cd_events_grouped[uid]["starts"].append( cd_event["start"])
                     if cd_event["start"] < cd_events_grouped[uid]["start"]:
                         cd_events_grouped[uid]["start"] = cd_event["start"]
-            
+
+                if ical_event['UID'] == request.GET.get('uid', ""):
+                    context['event'] = cd_event
+
         context["events"] = sorted(cd_events, key = lambda event: event["start_dt"])
 
         cd_events_grouped_list = []
@@ -1035,6 +1039,7 @@ class IcalendarPage(Page):
             caldate = caldate + datetime.timedelta(days=1)
             context["calendar_dates"].append(caldate)
 
+        print("tp258q730", request.GET.get('uid'))
         return context
 
 

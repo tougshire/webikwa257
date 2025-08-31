@@ -1039,7 +1039,7 @@ class IcalendarPage(Page):
             caldate = caldate + datetime.timedelta(days=1)
             context["calendar_dates"].append(caldate)
 
-        print("tp258q730", request.GET.get('uid'))
+        context['sidebars'] = get_sidebars(request)
         return context
 
 

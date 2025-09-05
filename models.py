@@ -305,7 +305,7 @@ class ArticleStaticTagsIndexPage(Page):
                 included_tag_name = included_tag_names[i].strip()
                 new_article_page_set={}
 
-                new_article_page_set['article_pages'] = ArticlePage.objects.live().filter(tags__name=included_tag_name)
+                new_article_page_set['article_pages'] = ArticlePage.objects.live().filter(tags__name=included_tag_name).order_by("-date")
 
                 if new_article_page_set['article_pages']:
                     new_article_page_set['tagname'] = included_tag_name

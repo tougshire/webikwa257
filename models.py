@@ -7,6 +7,7 @@ import zoneinfo
 
 
 import icalendar
+import html
 import markdown
 import nh3
 import recurring_ical_events
@@ -336,17 +337,11 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
             super().__init__(**kwargs)
             content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
             content = content + "<table>"
-#            try:
             astips = ArticleStaticTagsIndexPage.objects.all()
             for page in astips:
-                tags = re.split(r"(?:,|;)\s*", page.included_tag_names_string)
-                tag_content=""
-                for tag in tags:
-                    tag_content=tag_content + format_html(" <span class=\"help_static_tag\">{}</span>", tag)
+                tag_content = html.escape(re.sub(r'(,|;)\s*', r'\1 ', page.included_tag_names_string)).replace(';', ';<br/>')
                 content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, mark_safe(tag_content))
 
-#            except OperationalError as err:  ## probably caused when initial migration not yet applied
-#                logger.warning(err, " This error may be resolved after running the next migration")
                 
             content = content + "</table></div>"
             self.content = content

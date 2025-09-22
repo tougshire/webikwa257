@@ -1,13 +1,18 @@
 .help_static_tag_list table {
-    border-collapse:separate;
+    border-collapse: collapse;
     border-spacing: 1em 0;
-
+	
+}
+.help_static_tag_list td, .help_static_tag_list th  {
+	border:1px solid #555;
+	padding-left:.5em;
+	padding-right:.5em;
 }
 
-span.help_static_tag:after {
+/*span.help_static_tag:after {
     content: ', '
 }
 
 span.help_static_tag:last-child:after {
     content: ''
-}
+}*/

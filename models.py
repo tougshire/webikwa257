@@ -336,7 +336,7 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
             content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
-            content = content + "<table>"
+            content = content + "<table><tr><th>page</th><th>tags</th></tr>"
             astips = ArticleStaticTagsIndexPage.objects.all()
             for page in astips:
                 tag_content = html.escape(re.sub(r'(,|;)\s*', r'\1 ', page.included_tag_names_string)).replace(';', ';<br/>')

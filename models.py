@@ -1,18 +1,17 @@
 import datetime
+import html
 import json
 import logging
 import re
 import sys
+import uuid
 import zoneinfo
 
-
 import icalendar
-import html
 import markdown
 import nh3
 import recurring_ical_events
 import requests
-import uuid
 from django import forms
 from django.conf import settings
 from django.db import OperationalError, models
@@ -45,6 +44,7 @@ from wagtail.contrib.settings.models import (
 )
 from wagtail.documents import get_document_model
 from wagtail.fields import RichTextField, StreamField
+from wagtail.images.models import Image as WagtailImage
 from wagtail.models import Orderable, Page
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
@@ -54,19 +54,20 @@ from .blocks import BodyStreamBlock
 
 logger = logging.getLogger(__name__)
 
+
 def get_sidebars(request):
     sidebars = []
     for sidebarpage in SidebarPage.objects.live().all():
-        sidebar = {"location":sidebarpage.location, "children":[]}
+        sidebar = {"location": sidebarpage.location, "children": []}
         for childpage in sidebarpage.get_children().specific().iterator():
-            child={
-                "title":childpage.title, 
-                "body_md":childpage.specific.body_md, 
-                "body_sf":childpage.specific.body_sf,      
+            child = {
+                "title": childpage.title,
+                "body_md": childpage.specific.body_md,
+                "body_sf": childpage.specific.body_sf,
                 "context": childpage.specific.get_context(request),
             }
             try:
-                child["calendar_format"]=childpage.specific.calendar_format
+                child["calendar_format"] = childpage.specific.calendar_format
 
             except AttributeError:
                 pass
@@ -77,79 +78,86 @@ def get_sidebars(request):
 
     return sidebars
 
+
 class RedirectPage(Page):
 
     target_page = models.ForeignKey(
-        'wagtailcore.Page',
+        "wagtailcore.Page",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='+',
+        related_name="+",
     )
 
     content_panels = Page.content_panels + [
-        PageChooserPanel('target_page'),
+        PageChooserPanel("target_page"),
     ]
 
     def route(self, request, path_components):
         if path_components:
             return super().route(request, path_components)
         else:
-            path_components=[self.target_page.slug]
+            path_components = [self.target_page.slug]
             return super().route(request, path_components)
+
 
 class ArticleSingularPage(Page):
 
     target_page = models.ForeignKey(
-        'wagtailcore.Page',
+        "wagtailcore.Page",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='+',
+        related_name="+",
     )
 
     content_panels = Page.content_panels + [
-        PageChooserPanel('target_page', page_type=['webikwa257.ArticlePage']),
+        PageChooserPanel("target_page", page_type=["webikwa257.ArticlePage"]),
     ]
 
 
 class ArticleIndexPage(Page):
     intro = RichTextField(blank=True)
-    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
+    show_pagetitle = models.BooleanField(
+        default=True, help_text="If the page title should be shown"
+    )
 
     subpage_types = ["ArticlePage"]
 
     content_panels = Page.content_panels + [
-        FieldPanel('show_pagetitle'),
-        FieldPanel('intro'),
+        FieldPanel("show_pagetitle"),
+        FieldPanel("intro"),
     ]
 
     def get_context(self, request):
 
-        tag = request.GET.get('tag')
+        tag = request.GET.get("tag")
 
         context = super().get_context(request)
 
-#        ArticlePages = self.get_children().specific().live()
+        #        ArticlePages = self.get_children().specific().live()
         ArticlePages = ArticlePage.objects.live()
         if tag:
             ArticlePages = ArticlePage.objects.filter(tags__name=tag)
 
-        context['articlepages'] = ArticlePages
+        context["articlepages"] = ArticlePages
 
-        context['sidebars'] = get_sidebars(request)
+        context["sidebars"] = get_sidebars(request)
 
         return context
 
+
 class IcalendarIndexPage(Page):
     intro = RichTextField(blank=True)
-    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
+    show_pagetitle = models.BooleanField(
+        default=True, help_text="If the page title should be shown"
+    )
 
     subpage_types = ["IcalendarPage"]
 
     content_panels = Page.content_panels + [
-        FieldPanel('show_pagetitle'),
-        FieldPanel('intro'),
+        FieldPanel("show_pagetitle"),
+        FieldPanel("intro"),
     ]
 
     def get_context(self, request):
@@ -158,70 +166,107 @@ class IcalendarIndexPage(Page):
 
         IcalCombinerPages = IcalCombinerPage.objects.live()
 
-        context['IcalCombinerPages'] = IcalCombinerPages
+        context["IcalCombinerPages"] = IcalCombinerPages
 
-        context['sidebars'] = get_sidebars(request)
-        
+        context["sidebars"] = get_sidebars(request)
 
         return context
 
 
 class SidebarPage(Page):
     intro = RichTextField(blank=True)
-    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
-    location = models.CharField("location", max_length=40, blank=True, choices=(("left","left"),("right","right"),("top","top"),("bottom","bottom")))
+    show_pagetitle = models.BooleanField(
+        default=True, help_text="If the page title should be shown"
+    )
+    location = models.CharField(
+        "location",
+        max_length=40,
+        blank=True,
+        choices=(
+            ("left", "left"),
+            ("right", "right"),
+            ("top", "top"),
+            ("bottom", "bottom"),
+        ),
+    )
 
     content_panels = Page.content_panels + [
-        FieldPanel('show_pagetitle'),
-        FieldPanel('intro'),
-        FieldPanel('location'),
+        FieldPanel("show_pagetitle"),
+        FieldPanel("intro"),
+        FieldPanel("location"),
     ]
 
     def get_context(self, request):
         context = super().get_context(request)
         ArticlePages = self.get_children().live()
-        context['articlepages'] = ArticlePages
+        context["articlepages"] = ArticlePages
         return context
 
 
 @register_snippet
 class ArticlePageTag(TaggedItemBase):
     content_object = ParentalKey(
-        'ArticlePage',
-        related_name='tagged_items',
-        on_delete=models.CASCADE
+        "ArticlePage", related_name="tagged_items", on_delete=models.CASCADE
     )
 
 
 class BaseArticlePage(Page):
 
-    body_md = MarkdownField(blank=True, help_text="A markdown version of the body. Both this and the streamfield version body will be displayed if they have content")
-    body_sf = StreamField(BodyStreamBlock(), blank=True, use_json_field=True, help_text="A streamfield version of the body. Both this and the markdown version body will be displayed if they have content")
-    embed_url = models.URLField("Embed Target URL", max_length=765, blank=True, help_text="For pages with an iFrame, the URL of the embedded contnet")
-    embed_frame_style = models.CharField("Frame Style", max_length=255, blank=True, default="width:90%; height:1600px;", help_text="For pages with an iFrame, styling for the frame")
-    document = models.ForeignKey(get_document_model(), null=True,blank=True,on_delete=models.SET_NULL,)
-    show_doc_link = models.BooleanField("show doc link", default=True, help_text="Show the document link automatically.  One reason to set false would be you're already placing a link in the body")
+    body_md = MarkdownField(
+        blank=True,
+        help_text="A markdown version of the body. Both this and the streamfield version body will be displayed if they have content",
+    )
+    body_sf = StreamField(
+        BodyStreamBlock(),
+        blank=True,
+        use_json_field=True,
+        help_text="A streamfield version of the body. Both this and the markdown version body will be displayed if they have content",
+    )
+    embed_url = models.URLField(
+        "Embed Target URL",
+        max_length=765,
+        blank=True,
+        help_text="For pages with an iFrame, the URL of the embedded contnet",
+    )
+    embed_frame_style = models.CharField(
+        "Frame Style",
+        max_length=255,
+        blank=True,
+        default="width:90%; height:1600px;",
+        help_text="For pages with an iFrame, styling for the frame",
+    )
+    document = models.ForeignKey(
+        get_document_model(),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    show_doc_link = models.BooleanField(
+        "show doc link",
+        default=True,
+        help_text="Show the document link automatically.  One reason to set false would be you're already placing a link in the body",
+    )
     is_creatable = False
 
     class Meta:
         verbose_name = "Base Article"
 
     def get_context(self, request):
-        context=super().get_context(request)
+        context = super().get_context(request)
 
         # restrict allowable embeds by listing them in settings.  "https://tougshire.com/12345" will match if "https://tougshire.com" is listed
         allow_embed = False
         if self.embed_url:
-            if hasattr(settings,"ALLOWED_EMBED_URLS"):
+            if hasattr(settings, "ALLOWED_EMBED_URLS"):
                 for allowed_url in settings.ALLOWED_EMBED_URLS:
-                    if allowed_url in self.embed_url[0:len(allowed_url)]:
+                    if allowed_url in self.embed_url[0 : len(allowed_url)]:
                         allow_embed = True
             else:
                 allow_embed = True
 
             if allow_embed:
-                context['embed_url'] = self.embed_url
-                context['embed_frame_style'] = self.embed_frame_style
+                context["embed_url"] = self.embed_url
+                context["embed_frame_style"] = self.embed_frame_style
 
         return context
 
@@ -235,190 +280,274 @@ class BaseArticlePage(Page):
                 return None
 
     def get_default_order(self):
-        """"
+        """ "
         orders the children of the page by ord (allows reordering the page) if less then 20 child pages
         if 20 or more pages use the default setting
         """
-        return '-latest_revision_created_at'
- 
+        return "-latest_revision_created_at"
+
+
 class ArticleStaticTagsIndexPage(Page):
 
-    show_pagetitle=models.BooleanField( default=True, help_text="If the page title should be shown" )
-    included_tag_names_string = models.CharField("tags included", max_length=255, blank=True, help_text="A comma separated list of tags to be included in this page which can also be grouped - separate groups with semicolon")
-    tag_titles_string = models.CharField("tag titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used instead of the tag names - not separated by group")
-    group_titles_string = models.CharField("group titles", max_length=255, blank=True, help_text="A comma separated list of titles to be used for tag groups")
-    full_body_groups = models.CharField("full body groups", max_length=30, blank=True, default="1",help_text="A comma separated one-based list of the tag group numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third groups, the body will be shown instead of the summary")
-    separate_tag_groups = models.BooleanField(default=True, help_text="If the ArticlePages should be separated by tag")
-    show_tag_titles = models.BooleanField(default=True, help_text='If the tag name should be displayed as a title to accompany the ArticlePages')
-    custom_css = models.TextField(blank=True, help_text="Custom css to be added to the html head section when this page is displayed")
+    show_pagetitle = models.BooleanField(
+        default=True, help_text="If the page title should be shown"
+    )
+    included_tag_names_string = models.CharField(
+        "tags included",
+        max_length=255,
+        blank=True,
+        help_text="A comma separated list of tags to be included in this page which can also be grouped - separate groups with semicolon",
+    )
+    tag_titles_string = models.CharField(
+        "tag titles",
+        max_length=255,
+        blank=True,
+        help_text="A comma separated list of titles to be used instead of the tag names - not separated by group",
+    )
+    group_titles_string = models.CharField(
+        "group titles",
+        max_length=255,
+        blank=True,
+        help_text="A comma separated list of titles to be used for tag groups",
+    )
+    full_body_groups = models.CharField(
+        "full body groups",
+        max_length=30,
+        blank=True,
+        default="1",
+        help_text="A comma separated one-based list of the tag group numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third groups, the body will be shown instead of the summary",
+    )
+    separate_tag_groups = models.BooleanField(
+        default=True, help_text="If the ArticlePages should be separated by tag"
+    )
+    show_tag_titles = models.BooleanField(
+        default=True,
+        help_text="If the tag name should be displayed as a title to accompany the ArticlePages",
+    )
+    custom_css = models.TextField(
+        blank=True,
+        help_text="Custom css to be added to the html head section when this page is displayed",
+    )
 
     content_panels = Page.content_panels + [
-
-
-        FieldPanel('show_pagetitle'),
+        FieldPanel("show_pagetitle"),
         MultiFieldPanel(
             [
-                FieldPanel('included_tag_names_string'),
-                MultiFieldPanel([
-                    FieldPanel('tag_titles_string'),
-                    FieldPanel('group_titles_string'),
-                    FieldPanel('separate_tag_groups'),
-                ], heading="Tag Titles"),
-                FieldPanel('show_tag_titles'),
-                MultiFieldPanel([
-                    FieldPanel('full_body_groups'),
-                    FieldPanel('custom_css'),
-                ],heading="Formatting")
+                FieldPanel("included_tag_names_string"),
+                MultiFieldPanel(
+                    [
+                        FieldPanel("tag_titles_string"),
+                        FieldPanel("group_titles_string"),
+                        FieldPanel("separate_tag_groups"),
+                    ],
+                    heading="Tag Titles",
+                ),
+                FieldPanel("show_tag_titles"),
+                MultiFieldPanel(
+                    [
+                        FieldPanel("full_body_groups"),
+                        FieldPanel("custom_css"),
+                    ],
+                    heading="Formatting",
+                ),
             ]
-        )
+        ),
     ]
 
     def get_context(self, request):
 
         context = super().get_context(request)
 
-        full_body_groups=[]
-        full_body_group_pieces = [piece.strip() for piece in self.full_body_groups.split(',')]
+        full_body_groups = []
+        full_body_group_pieces = [
+            piece.strip() for piece in self.full_body_groups.split(",")
+        ]
         for piece in full_body_group_pieces:
             try:
                 full_body_groups.append(piece)
             except ValueError as e:
                 pass
 
-        context['full_body_groups'] = full_body_groups
+        context["full_body_groups"] = full_body_groups
 
         article_page_groups = []
 
-        included_tag_name_groups = self.included_tag_names_string.split(';')
-        tag_titles = re.split(r';|,', self.tag_titles_string ) if self.tag_titles_string > '' else []
-        group_titles = re.split(r';|,', self.group_titles_string ) if self.group_titles_string > '' else []
+        included_tag_name_groups = self.included_tag_names_string.split(";")
+        tag_titles = (
+            re.split(r";|,", self.tag_titles_string)
+            if self.tag_titles_string > ""
+            else []
+        )
+        group_titles = (
+            re.split(r";|,", self.group_titles_string)
+            if self.group_titles_string > ""
+            else []
+        )
 
         t = 0
         for g in range(len(included_tag_name_groups)):
-            new_article_page_group = {'article_page_sets':[]}
+            new_article_page_group = {"article_page_sets": []}
             if len(group_titles) > g:
-                if group_titles[g] > '':
-                    new_article_page_group['group_title'] = group_titles[g]
+                if group_titles[g] > "":
+                    new_article_page_group["group_title"] = group_titles[g]
             article_page_sets = []
-            included_tag_names = included_tag_name_groups[g].split(',')
+            included_tag_names = included_tag_name_groups[g].split(",")
 
             for i in range(len(included_tag_names)):
                 included_tag_name = included_tag_names[i].strip()
-                new_article_page_set={}
+                new_article_page_set = {}
 
-                new_article_page_set['article_pages'] = ArticlePage.objects.live().filter(tags__name=included_tag_name).order_by("-date")
+                new_article_page_set["article_pages"] = (
+                    ArticlePage.objects.live()
+                    .filter(tags__name=included_tag_name)
+                    .order_by("-date")
+                )
 
-                if new_article_page_set['article_pages']:
-                    new_article_page_set['tagname'] = included_tag_name
-                    tag_title = tag_titles[t].strip() if len(tag_titles ) > t  else included_tag_name if not included_tag_name[0] == "_" else " "
-                    new_article_page_set['title'] = tag_title
+                if new_article_page_set["article_pages"]:
+                    new_article_page_set["tagname"] = included_tag_name
+                    tag_title = (
+                        tag_titles[t].strip()
+                        if len(tag_titles) > t
+                        else (
+                            included_tag_name
+                            if not included_tag_name[0] == "_"
+                            else " "
+                        )
+                    )
+                    new_article_page_set["title"] = tag_title
                     article_page_sets.append(new_article_page_set)
 
                 t = t + 1
 
-
             if article_page_sets:
-                new_article_page_group['article_page_sets']=article_page_sets
+                new_article_page_group["article_page_sets"] = article_page_sets
 
                 article_page_groups.append(new_article_page_group)
 
-        context['article_page_groups'] = article_page_groups
+        context["article_page_groups"] = article_page_groups
 
-        context['sidebars'] = get_sidebars(request)
+        context["sidebars"] = get_sidebars(request)
 
         # context['first_group_is_special'] = self.first_group_is_special
 
         return context
+
 
 class ArticleStaticTagsHelpPanel(HelpPanel):
 
     class BoundPanel(HelpPanel.BoundPanel):
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
-            content = "<div class=\"help_static_tag_list\"><h3>Tags used in Static Tags Index Pages</h3>"
+            content = '<div class="help_static_tag_list"><h3>Tags used in Static Tags Index Pages</h3>'
             content = content + "<table><tr><th>page</th><th>tags</th></tr>"
             astips = ArticleStaticTagsIndexPage.objects.all()
             for page in astips:
-                tag_content = html.escape(re.sub(r'(,|;)\s*', r'\1 ', page.included_tag_names_string)).replace(';', ';<br/>')
-                content = content + format_html("<tr><td>{}:  </td><td>{}</td></tr>", page.slug, mark_safe(tag_content))
+                tag_content = html.escape(
+                    re.sub(r"(,|;)\s*", r"\1 ", page.included_tag_names_string)
+                ).replace(";", ";<br/>")
+                content = content + format_html(
+                    "<tr><td>{}:  </td><td>{}</td></tr>",
+                    page.slug,
+                    mark_safe(tag_content),
+                )
 
-                
             content = content + "</table></div>"
             self.content = content
+
+
+class ImageUrlHelpPanel(HelpPanel):
+
+    class BoundPanel(HelpPanel.BoundPanel):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            print("tp25acl50", self)
+
+            try:
+                print("tp25acl42", self.instance.image.file)
+                url = self.instance.image.file.url
+                content = f'<a href="{ url }" target="_new">{ url }</a>'
+                self.content = content
+            except WagtailImage.DoesNotExist as e:
+                print("tp25ad550", e, type(e))
+
 
 class ArticlePage(BaseArticlePage):
 
     date = models.DateField("Post date", default=datetime.date.today)
-    summary = models.CharField(max_length=250, blank=True, help_text='A summary to be displayed instead of the body for index views')
+    summary = models.CharField(
+        max_length=250,
+        blank=True,
+        help_text="A summary to be displayed instead of the body for index views",
+    )
 
-    authors = ParentalManyToManyField('webikwa257.Author', blank=True)
+    authors = ParentalManyToManyField("webikwa257.Author", blank=True)
     tags = ClusterTaggableManager(through=ArticlePageTag, blank=True)
 
-    show_gallery = models.BooleanField("show gallery", default=True, help_text="Show the gallery")
+    show_gallery = models.BooleanField(
+        "show gallery", default=True, help_text="Show the gallery"
+    )
 
     parent_page_types = ["ArticleIndexPage"]
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(
             [
-                FieldPanel('date'),
-                FieldPanel('authors', widget=forms.CheckboxSelectMultiple),
-                FieldPanel('tags'),
+                FieldPanel("date"),
+                FieldPanel("authors", widget=forms.CheckboxSelectMultiple),
+                FieldPanel("tags"),
                 ArticleStaticTagsHelpPanel(),
             ],
-            heading="Article information"
+            heading="Article information",
         ),
-
-        FieldPanel('summary'),
-        FieldPanel('body_md'),
-        FieldPanel('body_sf'),
+        FieldPanel("summary"),
+        FieldPanel("body_md"),
+        FieldPanel("body_sf"),
         MultiFieldPanel(
             [
-                FieldPanel('document'),
-                FieldPanel('show_doc_link'),
+                FieldPanel("document"),
+                FieldPanel("show_doc_link"),
             ],
-            heading="Document"
+            heading="Document",
         ),
         MultiFieldPanel(
             [
-                InlinePanel('article_images', label="Article images"),
-                InlinePanel('gallery_images', label="Gallery images"),
-                FieldPanel('show_gallery'),
+                InlinePanel("article_images", label="Article images"),
+                InlinePanel("gallery_images", label="Gallery images"),
+                FieldPanel("show_gallery"),
             ]
         ),
         MultiFieldPanel(
             [
-                FieldPanel('embed_url'),
-                FieldPanel('embed_frame_style'),
+                FieldPanel("embed_url"),
+                FieldPanel("embed_frame_style"),
             ],
-            heading="Embedded Content"
+            heading="Embedded Content",
         ),
     ]
 
     search_fields = Page.search_fields + [
-        index.SearchField('summary'),
-        index.SearchField('body_md'),
-        index.SearchField('body_sf'),
+        index.SearchField("summary"),
+        index.SearchField("body_md"),
+        index.SearchField("body_sf"),
     ]
-
 
     class Meta:
         verbose_name = "Article"
 
     def get_tags(self):
-        tag_list=[ tag.name for tag in self.tags.all().order_by("name") ]
+        tag_list = [tag.name for tag in self.tags.all().order_by("name")]
         return ",".join(tag_list)
 
     def get_context(self, request):
-        context=super().get_context(request)
+        context = super().get_context(request)
 
-        context['sidebars'] = get_sidebars(request)
+        context["sidebars"] = get_sidebars(request)
 
-        context['visible_tags']=[]
-        for tag in context['page'].tags.all():
+        context["visible_tags"] = []
+        for tag in context["page"].tags.all():
 
-            if not tag.name[0] == '_':
-                context['visible_tags'].append(tag)
+            if not tag.name[0] == "_":
+                context["visible_tags"].append(tag)
 
         try:
             context["og_url"] = settings.OG_URL
@@ -427,46 +556,64 @@ class ArticlePage(BaseArticlePage):
 
         return context
 
+
 class IcalCombinerPage(BaseArticlePage):
 
-    CALENDAR_FORMAT_CHOICES=[
-#        ("EVLS", "event list"),
+    CALENDAR_FORMAT_CHOICES = [
+        #        ("EVLS", "event list"),
         ("DTLS", "date list"),
-        ("GRID", "calendar grid")
+        ("GRID", "calendar grid"),
     ]
 
-    calendars=ParentalManyToManyField('IcalendarPage', blank=True)
-    ical_start_span_count = models.CharField("start,span,count", max_length=20, blank=True, default="-1,3660", help_text="Comma separated numbers representing the number of days to the starting date (can be negative), the number of days from the starting date to the ending date, and the max number of events to return")
-    calendar_format = models.CharField("calendar format", max_length=4, default="DTLS", choices=CALENDAR_FORMAT_CHOICES, help_text="(choices unavailable for now) The format for how the events are displayed")
-    calendar_dt_format = models.CharField("calendar date and time formats", max_length=40, default="D Y M d|g:iA", help_text="The date and time formats separated by a bar ex: D Y M d|g:iA")
+    calendars = ParentalManyToManyField("IcalendarPage", blank=True)
+    ical_start_span_count = models.CharField(
+        "start,span,count",
+        max_length=20,
+        blank=True,
+        default="-1,3660",
+        help_text="Comma separated numbers representing the number of days to the starting date (can be negative), the number of days from the starting date to the ending date, and the max number of events to return",
+    )
+    calendar_format = models.CharField(
+        "calendar format",
+        max_length=4,
+        default="DTLS",
+        choices=CALENDAR_FORMAT_CHOICES,
+        help_text="(choices unavailable for now) The format for how the events are displayed",
+    )
+    calendar_dt_format = models.CharField(
+        "calendar date and time formats",
+        max_length=40,
+        default="D Y M d|g:iA",
+        help_text="The date and time formats separated by a bar ex: D Y M d|g:iA",
+    )
 
-    parent_page_types = ["SidebarPage", 'ArticleSingularPage']
+    parent_page_types = ["SidebarPage", "ArticleSingularPage"]
 
     class Meta:
         verbose_name = "iCalendar Combiner"
-        
 
     content_panels = Page.content_panels + [
-
         MultiFieldPanel(
             [
-                FieldPanel('calendars'),
-                FieldPanel('ical_start_span_count'),
-                FieldPanel('calendar_dt_format'),
-
+                FieldPanel("calendars"),
+                FieldPanel("ical_start_span_count"),
+                FieldPanel("calendar_dt_format"),
             ],
-            heading="Calendar"
+            heading="Calendar",
         )
     ]
 
     def get_context(self, request):
 
-        context=super().get_context(request)
+        context = super().get_context(request)
 
         if self.calendars:
 
-            start_input, span_input, count_input = [0,3660,None]
-            ical_inputs = [ int(num) if num.strip().isnumeric() else None for num in self.ical_start_span_count.split(",")]
+            start_input, span_input, count_input = [0, 3660, None]
+            ical_inputs = [
+                int(num) if num.strip().isnumeric() else None
+                for num in self.ical_start_span_count.split(",")
+            ]
             cd_events = []
             cd_events_grouped = {}
             calendar_refs = []
@@ -492,16 +639,16 @@ class IcalCombinerPage(BaseArticlePage):
 
             for ical in self.calendars.all():
                 ical_string = ical.data
-                uidlinks={}
-                calendar_refs.append({"slug":ical.slug, "title":ical.title })
-        
+                uidlinks = {}
+                calendar_refs.append({"slug": ical.slug, "title": ical.title})
+
                 for link in ical.uid_links.all():
-                    uidlinks[link.uid]=link.url
+                    uidlinks[link.uid] = link.url
 
                 for ical_event in ical.ical_events.all():
-                    uidlinks[ical_event.uid]=ical_event.url
+                    uidlinks[ical_event.uid] = ical_event.url
 
-                uidblocks=[]
+                uidblocks = []
                 for block in ical.uid_blocks.all():
                     if block.uid > "":
                         uidblocks.append(block.uid)
@@ -512,19 +659,34 @@ class IcalCombinerPage(BaseArticlePage):
                     print("ICAL Parse Error")
                     continue
 
-                ical_events = recurring_ical_events.of(ical_calendar).between(start_date, end_date)
+                ical_events = recurring_ical_events.of(ical_calendar).between(
+                    start_date, end_date
+                )
                 for ical_event in ical_events:
-                    if ical_event['UID'] not in uidblocks:
+                    if ical_event["UID"] not in uidblocks:
                         cd_event = {}
                         uid = ical_event["UID"]
                         cd_event["uid"] = uid
-                        cd_event['calendar_slug'] = ical.slug
-                        cd_event['calendar'] = ical.get_url()
+                        cd_event["calendar_slug"] = ical.slug
+                        cd_event["calendar"] = ical.get_url()
                         cd_event["start"] = ical_event["DTSTART"].dt
                         cd_event["start_type"] = type(cd_event["start"]).__name__
-                        cd_event["start_d"] = cd_event["start"].date() if cd_event["start_type"] == 'datetime' else cd_event["start"]
-                        cd_event["start_dt"] = cd_event["start"] if cd_event["start_type"] == 'datetime' else datetime.datetime(cd_event["start"].year, cd_event["start"].month, cd_event["start"].day, tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
-                        cd_event["end"] =ical_event["DTEND"].dt
+                        cd_event["start_d"] = (
+                            cd_event["start"].date()
+                            if cd_event["start_type"] == "datetime"
+                            else cd_event["start"]
+                        )
+                        cd_event["start_dt"] = (
+                            cd_event["start"]
+                            if cd_event["start_type"] == "datetime"
+                            else datetime.datetime(
+                                cd_event["start"].year,
+                                cd_event["start"].month,
+                                cd_event["start"].day,
+                                tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE),
+                            )
+                        )
+                        cd_event["end"] = ical_event["DTEND"].dt
 
                         try:
                             cd_event["summary"] = ical_event["SUMMARY"]
@@ -541,13 +703,13 @@ class IcalCombinerPage(BaseArticlePage):
                         cd_events.append(cd_event)
                         if uid not in cd_events_grouped:
                             cd_events_grouped[uid] = cd_event
-                            cd_events_grouped[uid]["starts"] = [ cd_event["start"] ]
+                            cd_events_grouped[uid]["starts"] = [cd_event["start"]]
                         else:
-                            cd_events_grouped[uid]["starts"].append( cd_event["start"])
+                            cd_events_grouped[uid]["starts"].append(cd_event["start"])
                             if cd_event["start"] < cd_events_grouped[uid]["start"]:
                                 cd_events_grouped[uid]["start"] = cd_event["start"]
-                
-            context["events"] = sorted(cd_events, key = lambda event: event["start_dt"])
+
+            context["events"] = sorted(cd_events, key=lambda event: event["start_dt"])
             if count_input is not None:
                 context["events"] = context["events"][:count_input]
 
@@ -555,95 +717,123 @@ class IcalCombinerPage(BaseArticlePage):
             for uid in cd_events_grouped:
                 cd_events_grouped[uid]["starts"].sort()
                 cd_events_grouped_list.append(cd_events_grouped[uid])
-            context["events_grouped"] = sorted(cd_events_grouped_list, key=lambda event: event["start_d"])
+            context["events_grouped"] = sorted(
+                cd_events_grouped_list, key=lambda event: event["start_d"]
+            )
             if count_input is not None:
                 context["events_grouped"] = context["events_grouped"][:count_input]
 
-            context['datetime_formats'] = {'date':'D Y M d', 'time':'g:iA'}
+            context["datetime_formats"] = {"date": "D Y M d", "time": "g:iA"}
             if self.calendar_dt_format:
-                dt_formats = self.calendar_dt_format.split('|')
-                context['datetime_formats']['date'] = dt_formats[0]
+                dt_formats = self.calendar_dt_format.split("|")
+                context["datetime_formats"]["date"] = dt_formats[0]
                 if len(dt_formats) > 1:
-                    context['datetime_formats']['time'] = dt_formats[1]
-            context['datetime_formats']['datetime'] = "{} {}".format(context['datetime_formats']['date'], context['datetime_formats']['time'])
+                    context["datetime_formats"]["time"] = dt_formats[1]
+            context["datetime_formats"]["datetime"] = "{} {}".format(
+                context["datetime_formats"]["date"], context["datetime_formats"]["time"]
+            )
 
-            context['calendar_refs'] = calendar_refs
+            context["calendar_refs"] = calendar_refs
 
             caldate = start_date
-            context['calendar_dates'] = [caldate]
+            context["calendar_dates"] = [caldate]
             for i in range(span_input):
                 caldate = caldate + datetime.timedelta(days=1)
                 context["calendar_dates"].append(caldate)
 
         return context
 
+
 class SidebarArticlePage(BaseArticlePage):
 
     date = models.DateField("Post date", default=datetime.date.today)
-    show_title = models.BooleanField(default=True, help_text="If the title should be shown")
+    show_title = models.BooleanField(
+        default=True, help_text="If the title should be shown"
+    )
     parent_page_types = ["SidebarPage"]
 
     content_panels = Page.content_panels + [
-
-        FieldPanel('show_title'),
-        FieldPanel('body_md'),
-        FieldPanel('body_sf'),
+        FieldPanel("show_title"),
+        FieldPanel("body_md"),
+        FieldPanel("body_sf"),
         MultiFieldPanel(
             [
-                FieldPanel('document'),
-                FieldPanel('show_doc_link'),
+                FieldPanel("document"),
+                FieldPanel("show_doc_link"),
             ],
-            heading="Document"
+            heading="Document",
         ),
         MultiFieldPanel(
             [
-                FieldPanel('embed_url'),
-                FieldPanel('embed_frame_style'),
+                FieldPanel("embed_url"),
+                FieldPanel("embed_frame_style"),
             ],
-            heading="Embedded Content"
+            heading="Embedded Content",
         ),
-
     ]
+
 
 class ArticlePageImage(Orderable):
     page = ParentalKey(
-        BaseArticlePage, on_delete=models.CASCADE, related_name='article_images')
+        BaseArticlePage, on_delete=models.CASCADE, related_name="article_images"
+    )
     image = models.ForeignKey(
-        'wagtailimages.Image', on_delete=models.CASCADE, related_name='+'
+        "wagtailimages.Image", on_delete=models.CASCADE, related_name="+"
     )
     alt_text = models.TextField("alt text", blank=True, max_length=250)
-    display_with_summary = models.BooleanField("with summary", default=False, help_text="If this image should appear where the article summary is shown")
-    display_before_body = models.BooleanField("before body", default=False, help_text="If this image should appear before the body of the article")
-    display_after_body = models.BooleanField("after_body", default=False, help_text="If this image should appear after the body of the article")
-    is_featured = models.BooleanField("is featured", default=False, help_text="If this image is the featured image to be used in social media links and similar contexts. Only one should be selected. ")
+    display_with_summary = models.BooleanField(
+        "with summary",
+        default=False,
+        help_text="If this image should appear where the article summary is shown",
+    )
+    display_before_body = models.BooleanField(
+        "before body",
+        default=False,
+        help_text="If this image should appear before the body of the article",
+    )
+    display_after_body = models.BooleanField(
+        "after_body",
+        default=False,
+        help_text="If this image should appear after the body of the article",
+    )
+    is_featured = models.BooleanField(
+        "is featured",
+        default=False,
+        help_text="If this image is the featured image to be used in social media links and similar contexts. Only one should be selected. ",
+    )
 
     panels = [
-        MultiFieldPanel([
-            FieldPanel('image'),
-            FieldPanel('alt_text'),
-        ],
-        heading="Image Properties"
+        ImageUrlHelpPanel(),
+        MultiFieldPanel(
+            [
+                FieldPanel("image"),
+                FieldPanel("alt_text"),
+            ],
+            heading="Image Properties",
         ),
-        MultiFieldPanel([
-            FieldPanel('display_with_summary'),
-            FieldPanel('display_before_body'),
-            FieldPanel('display_after_body'),
-            FieldPanel('is_featured'),
-        ])
-
+        MultiFieldPanel(
+            [
+                FieldPanel("display_with_summary"),
+                FieldPanel("display_before_body"),
+                FieldPanel("display_after_body"),
+                FieldPanel("is_featured"),
+            ]
+        ),
     ]
+
 
 class ArticlePageGalleryImage(Orderable):
     page = ParentalKey(
-        BaseArticlePage, on_delete=models.CASCADE, related_name='gallery_images')
+        BaseArticlePage, on_delete=models.CASCADE, related_name="gallery_images"
+    )
     image = models.ForeignKey(
-        'wagtailimages.Image', on_delete=models.CASCADE, related_name='+'
+        "wagtailimages.Image", on_delete=models.CASCADE, related_name="+"
     )
     alt_text = models.TextField("alt text", blank=True, max_length=250)
 
     panels = [
-        FieldPanel('image'),
-        FieldPanel('alt_text'),
+        FieldPanel("image"),
+        FieldPanel("alt_text"),
     ]
 
 
@@ -651,31 +841,35 @@ class ArticlePageGalleryImage(Orderable):
 class Author(models.Model):
     name = models.CharField(max_length=255)
     author_image = models.ForeignKey(
-        'wagtailimages.Image', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='+'
+        "wagtailimages.Image",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
 
     panels = [
-        FieldPanel('name'),
-        FieldPanel('author_image'),
+        FieldPanel("name"),
+        FieldPanel("author_image"),
     ]
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name_plural = 'Authors'
+        verbose_name_plural = "Authors"
 
 
 @register_setting
 class SiteSpecificImportantPages(BaseSiteSetting):
     article_index_page = models.ForeignKey(
-        'wagtailcore.Page', null=True, on_delete=models.SET_NULL, related_name='+'
+        "wagtailcore.Page", null=True, on_delete=models.SET_NULL, related_name="+"
     )
 
     panels = [
-        FieldPanel('article_index_page'),
+        FieldPanel("article_index_page"),
     ]
+
 
 @register_setting
 class SiteTemplateSettings(BaseSiteSetting):
@@ -688,92 +882,99 @@ class SiteTemplateSettings(BaseSiteSetting):
     )
 
     banner_image = models.ForeignKey(
-        'wagtailimages.Image', related_name='+',
+        "wagtailimages.Image",
+        related_name="+",
         null=True,
         blank=True,
         default=None,
-        on_delete=models.SET_NULL
+        on_delete=models.SET_NULL,
     )
     show_banner_image = models.BooleanField(
-        'show banner image',
+        "show banner image",
         default=True,
-        help_text="Show the chosen banner image.  If deselected, banner_text will be used instead of the image"
+        help_text="Show the chosen banner image.  If deselected, banner_text will be used instead of the image",
     )
     banner_image_style = models.CharField(
         max_length=255,
         blank=True,
         default="50%",
-        help_text="Styling for the banner image or if a single value, A css value representing the width of the banner image. Include at least one semicolon (;) to indicate that this is a style, and not just a width value"
+        help_text="Styling for the banner image or if a single value, A css value representing the width of the banner image. Include at least one semicolon (;) to indicate that this is a style, and not just a width value",
     )
     banner_text = models.CharField(
         "banner_text",
         max_length=80,
         blank=True,
         default="webikwa257",
-        help_text="The alt text to be displayed if there is a banner image, or the text to be displayed if there is no image"
+        help_text="The alt text to be displayed if there is a banner image, or the text to be displayed if there is no image",
     )
-    site_description=models.CharField(
+    site_description = models.CharField(
         "site description",
         max_length=80,
         blank=True,
         default="New Wibewa Wagtail Blog",
-        help_text="The site description to be displayed near the banner image or banner text"
+        help_text="The site description to be displayed near the banner image or banner text",
     )
-    show_topbar=models.BooleanField(
-        default=False,
-        help_text="If the top sidebar should be shown"
+    show_topbar = models.BooleanField(
+        default=False, help_text="If the top sidebar should be shown"
     )
-    show_leftbar=models.BooleanField(
-        default=False,
-        help_text="If the left sidebar should be shown"
+    show_leftbar = models.BooleanField(
+        default=False, help_text="If the left sidebar should be shown"
     )
-    show_rightbar=models.BooleanField(
-        default=False,
-        help_text="If the right sidebar should be shown"
+    show_rightbar = models.BooleanField(
+        default=False, help_text="If the right sidebar should be shown"
     )
-    show_bottombar=models.BooleanField(
-        default=False,
-        help_text="If the bottom sidebar should be shown"
+    show_bottombar = models.BooleanField(
+        default=False, help_text="If the bottom sidebar should be shown"
     )
-    mainmenu_location=models.CharField(
+    mainmenu_location = models.CharField(
         "main menu location",
         max_length=20,
-        choices=(("none","None"),("top","Top"),("left","Left"),("right","Right")),
+        choices=(
+            ("none", "None"),
+            ("top", "Top"),
+            ("left", "Left"),
+            ("right", "Right"),
+        ),
         help_text="The location of the main menu",
-        default="top"
+        default="top",
     )
-    theme_color=models.CharField(
+    theme_color = models.CharField(
         "theme color",
         max_length=30,
         default="black",
-        help_text='The theme color. This should match the base name of a css file in a static folder webikwa257/css. Ex "blue" if there is a webikwa257/css/blue.css'
+        help_text='The theme color. This should match the base name of a css file in a static folder webikwa257/css. Ex "blue" if there is a webikwa257/css/blue.css',
     )
-    footer_text=models.CharField(
+    footer_text = models.CharField(
         "footer text",
         max_length=255,
         blank=True,
         default="Created wth Wagtail and webikwa257",
         help_text="The footer text.  This may be split into a list using footer_text_separator",
     )
-    footer_text_separator=models.CharField(
+    footer_text_separator = models.CharField(
         "footer text separator",
         max_length=2,
         blank=True,
-        default=';',
-        help_text="The character by which the footer text will be split into a list.  This is optional"
+        default=";",
+        help_text="The character by which the footer text will be split into a list.  This is optional",
     )
     favicon = models.CharField(
-        'path to favicon',
+        "path to favicon",
         max_length=125,
         blank=True,
         help_text="The path to the favicon. If static, precede with 'static:' ex: static:images/favicon.ico",
     )
 
     def __str__(self):
-        return "Template Settings for " + self.site.__str__() if self.site is not None else "None"
+        return (
+            "Template Settings for " + self.site.__str__()
+            if self.site is not None
+            else "None"
+        )
 
-    class Meta():
+    class Meta:
         verbose_name_plural = "Template Settings"
+
 
 def clean_form(self):
 
@@ -781,13 +982,14 @@ def clean_form(self):
 
     for field_name in self.honeypot_field_list:
         field_data = self.cleaned_data.get(field_name)
-        if str(field_data) > '':
+        if str(field_data) > "":
             honeypot_err = True
 
     if honeypot_err:
         self.add_error(None, self.honeypot_error_message)
 
     return self.cleaned_data
+
 
 class FormPage(AbstractEmailForm):
 
@@ -796,17 +998,20 @@ class FormPage(AbstractEmailForm):
     def get_form(self, *args, **kwargs):
 
         form = super().get_form(*args, **kwargs)
-        form.honeypot_error_message=self.honeypot_error_message
+        form.honeypot_error_message = self.honeypot_error_message
 
-        raw_honeypot_field_list = [ get_field_clean_name(field_label) for field_label in self.honeypot_field_names.split(',') ]
-        honeypot_field_list=[]
+        raw_honeypot_field_list = [
+            get_field_clean_name(field_label)
+            for field_label in self.honeypot_field_names.split(",")
+        ]
+        honeypot_field_list = []
 
-        self.honeypot_show_intro=False
+        self.honeypot_show_intro = False
 
         for field_name in raw_honeypot_field_list:
             if field_name in form.fields:
                 honeypot_field_list.append(field_name)
-                self.honeypot_show_intro=True
+                self.honeypot_show_intro = True
 
         form.honeypot_field_list = honeypot_field_list
 
@@ -817,46 +1022,81 @@ class FormPage(AbstractEmailForm):
 
         return form
 
-
     template = "webikwa257/contact_page.html"
     # This is the default path.
     # If ignored, Wagtail adds _landing.html to your template name
     landing_page_template = "webikwa257/contact_page_landing.html"
 
-    intro = RichTextField(blank=True, help_text="Enter something like a summary of the form's purpose or general instructions for filling it out. If your form contains honeypots, explain that the form has fields or a field which should be left blank")
-    thank_you_text = RichTextField(blank=True, help_text="Enter text to be shown after the form is submitted")
+    intro = RichTextField(
+        blank=True,
+        help_text="Enter something like a summary of the form's purpose or general instructions for filling it out. If your form contains honeypots, explain that the form has fields or a field which should be left blank",
+    )
+    thank_you_text = RichTextField(
+        blank=True, help_text="Enter text to be shown after the form is submitted"
+    )
 
-    honeypot_field_names = models.CharField("honeypot", max_length=255, blank=True, help_text="The name or comma-separated list of names for the field or fields to be left blank by humans in order to trap bots. The field(s) should be single-line required=False")
-    honeypot_error_message = models.CharField("honeypot error message", max_length=255, blank=True, default="If you are a person, please read the notes and retry", help_text="The name or comma-separated list of names for the field or fields to be left blank by humans in order to trap bots. The field(s) should be single-line required=False")
-    honeypot_intro = RichTextField(blank=True, default="Note: This form has a field or fields which should be left unfilled. In order to trap automatic form fillers, these fields are not marked but a person should be able to figure out which those are", help_text="Explain to visitors that the form has a field or fields which humans should realize are to be left blank")
+    honeypot_field_names = models.CharField(
+        "honeypot",
+        max_length=255,
+        blank=True,
+        help_text="The name or comma-separated list of names for the field or fields to be left blank by humans in order to trap bots. The field(s) should be single-line required=False",
+    )
+    honeypot_error_message = models.CharField(
+        "honeypot error message",
+        max_length=255,
+        blank=True,
+        default="If you are a person, please read the notes and retry",
+        help_text="The name or comma-separated list of names for the field or fields to be left blank by humans in order to trap bots. The field(s) should be single-line required=False",
+    )
+    honeypot_intro = RichTextField(
+        blank=True,
+        default="Note: This form has a field or fields which should be left unfilled. In order to trap automatic form fillers, these fields are not marked but a person should be able to figure out which those are",
+        help_text="Explain to visitors that the form has a field or fields which humans should realize are to be left blank",
+    )
 
     content_panels = AbstractEmailForm.content_panels + [
-        FieldPanel('intro'),
-        InlinePanel('form_fields', label='Form Fields'),
-        FieldPanel('thank_you_text'),
-        MultiFieldPanel([
-            FieldRowPanel([
-                FieldPanel('from_address', classname="col6"),
-                FieldPanel('to_address', classname="col6"),
-            ]),
-            FieldPanel("subject"),
-        ], heading="Email Settings"),
-        MultiFieldPanel([
-            FieldPanel("honeypot_field_names"),
-            FieldPanel("honeypot_intro"),
-            FieldPanel("honeypot_error_message"),
-        ], heading="Honeypot")
+        FieldPanel("intro"),
+        InlinePanel("form_fields", label="Form Fields"),
+        FieldPanel("thank_you_text"),
+        MultiFieldPanel(
+            [
+                FieldRowPanel(
+                    [
+                        FieldPanel("from_address", classname="col6"),
+                        FieldPanel("to_address", classname="col6"),
+                    ]
+                ),
+                FieldPanel("subject"),
+            ],
+            heading="Email Settings",
+        ),
+        MultiFieldPanel(
+            [
+                FieldPanel("honeypot_field_names"),
+                FieldPanel("honeypot_intro"),
+                FieldPanel("honeypot_error_message"),
+            ],
+            heading="Honeypot",
+        ),
     ]
+
 
 class FormField(AbstractFormField):
 
-    page = ParentalKey(FormPage, on_delete=models.CASCADE, related_name='form_fields')
+    page = ParentalKey(FormPage, on_delete=models.CASCADE, related_name="form_fields")
+
 
 class ArticleCommentPage(Page):
     date = models.DateField("Post date", default=datetime.date.today)
-    body = models.CharField(max_length=250, blank=True, help_text='The body of the comment')
-    commenter_display_name = models.CharField(max_length=250, blank=True, help_text='The body of the comment')
-    in_reply_to = models.ForeignKey("ArticleCommentPage", on_delete=models.SET_NULL,null=True,blank=True)
+    body = models.CharField(
+        max_length=250, blank=True, help_text="The body of the comment"
+    )
+    commenter_display_name = models.CharField(
+        max_length=250, blank=True, help_text="The body of the comment"
+    )
+    in_reply_to = models.ForeignKey(
+        "ArticleCommentPage", on_delete=models.SET_NULL, null=True, blank=True
+    )
 
     parent_page_types = ["ArticlePage"]
 
@@ -864,23 +1104,28 @@ class ArticleCommentPage(Page):
         verbose_name = "Comment"
 
     search_fields = Page.search_fields + [
-        index.SearchField('body'),
-        index.SearchField('commenter_display_name'),
+        index.SearchField("body"),
+        index.SearchField("commenter_display_name"),
     ]
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(
             [
-                FieldPanel('date'),
-                FieldPanel('commenter_display_name', widget=forms.CheckboxSelectMultiple),
+                FieldPanel("date"),
+                FieldPanel(
+                    "commenter_display_name", widget=forms.CheckboxSelectMultiple
+                ),
             ],
-            heading="Article information"
+            heading="Article information",
         ),
-        FieldPanel('body'),
+        FieldPanel("body"),
     ]
+
+
 def get_timezone():
 
     return settings.TIME_ZONE if hasattr(settings, "TIME_ZONE") else "Etc/UTC"
+
 
 def get_empty_ical():
     empty_ical = f"""BEGIN:VCALENDAR
@@ -893,46 +1138,62 @@ END:VCALENDAR
 
     return empty_ical
 
-class IcalendarPage(Page):
 
+class IcalendarPage(Page):
     """
-    For retrieving events from a remote ical.  
+    For retrieving events from a remote ical.
     To be included in an IcalCombinerPage instance which in turn would be included in a SidebarPage
     """
 
-    source = models.URLField("source", blank=True, help_text="The ics source which will copied to the data")
-    data = models.TextField("body", blank=True, default=get_empty_ical, help_text="The ics data. If source is filled in, this will be overwritten. If you wish to edit this field, ensure the source field is blank")
-    is_safe = models.BooleanField("is safe", default=False, help_text="If it's certain that the code from the remote calendar is safe.  This can be dangerous.  Know that you can trust the source before enabling")
-    delete_stale_links_blocks = models.BooleanField("delete stale links & blocks", default=True, help_text="Upon save, automaticall delete links and blocks for events that are no longer on this calendar")
+    source = models.URLField(
+        "source", blank=True, help_text="The ics source which will copied to the data"
+    )
+    data = models.TextField(
+        "body",
+        blank=True,
+        default=get_empty_ical,
+        help_text="The ics data. If source is filled in, this will be overwritten. If you wish to edit this field, ensure the source field is blank",
+    )
+    is_safe = models.BooleanField(
+        "is safe",
+        default=False,
+        help_text="If it's certain that the code from the remote calendar is safe.  This can be dangerous.  Know that you can trust the source before enabling",
+    )
+    delete_stale_links_blocks = models.BooleanField(
+        "delete stale links & blocks",
+        default=True,
+        help_text="Upon save, automaticall delete links and blocks for events that are no longer on this calendar",
+    )
     parent_page_types = ["IcalendarIndexPage"]
 
     content_panels = Page.content_panels + [
-        FieldPanel('source'),
-        FieldPanel('data'),
-        InlinePanel('ical_events'),
-        InlinePanel('uid_links'),
-        InlinePanel('uid_blocks'),
-        FieldPanel('delete_stale_links_blocks'),
-        FieldPanel('is_safe'),
+        FieldPanel("source"),
+        FieldPanel("data"),
+        InlinePanel("ical_events"),
+        InlinePanel("uid_links"),
+        InlinePanel("uid_blocks"),
+        FieldPanel("delete_stale_links_blocks"),
+        FieldPanel("is_safe"),
     ]
-            
 
     def save(self, *args, **kwargs):
 
         # pre-save to get a PK if new, and update children
         super().save(*args, **kwargs)
 
-        #create the ics calendar
+        # create the ics calendar
         if self.source:
-            calendar_response = requests.get(self.source)    
+            calendar_response = requests.get(self.source)
             self.data = calendar_response.text
 
-        #add ical_event objects to the ics data
+        # add ical_event objects to the ics data
         for ical_event in self.ical_events.all():
             if ical_event.uid not in self.data:
                 data = self.data
                 insert_point = data.find("END:VCALENDAR")
-                self.data =  data[:insert_point] + ical_event.get_vevent() + data[insert_point:]
+                self.data = (
+                    data[:insert_point] + ical_event.get_vevent() + data[insert_point:]
+                )
 
         if self.delete_stale_links_blocks:
             for uid_link in self.uid_links.all():
@@ -946,23 +1207,23 @@ class IcalendarPage(Page):
 
     def get_context(self, request):
 
-        context=super().get_context(request)
+        context = super().get_context(request)
 
         cd_events = []
         cd_events_grouped = {}
         calendar_refs = []
 
         ical_string = self.data
-        uidlinks={}
-        calendar_refs.append({"slug":self.slug, "title":self.title })
+        uidlinks = {}
+        calendar_refs.append({"slug": self.slug, "title": self.title})
 
         for link in self.uid_links.all():
-            uidlinks[link.uid]=link.url
+            uidlinks[link.uid] = link.url
 
         for ical_event in self.ical_events.all():
-            uidlinks[ical_event.uid]=ical_event.url
+            uidlinks[ical_event.uid] = ical_event.url
 
-        uidblocks=[]
+        uidblocks = []
         for block in self.uid_blocks.all():
             if block.uid > "":
                 uidblocks.append(block.uid)
@@ -974,17 +1235,30 @@ class IcalendarPage(Page):
 
         ical_events = recurring_ical_events.of(ical_calendar).all()
         for ical_event in ical_events:
-            if ical_event['UID'] not in uidblocks:
+            if ical_event["UID"] not in uidblocks:
                 cd_event = {}
                 uid = ical_event["UID"]
                 cd_event["uid"] = uid
-                cd_event['calendar_slug'] = self.slug
-                cd_event['calendar'] = self.get_url()
+                cd_event["calendar_slug"] = self.slug
+                cd_event["calendar"] = self.get_url()
                 cd_event["start"] = ical_event["DTSTART"].dt
                 cd_event["start_type"] = type(cd_event["start"]).__name__
-                cd_event["start_d"] = cd_event["start"].date() if cd_event["start_type"] == 'datetime' else cd_event["start"]
-                cd_event["start_dt"] = cd_event["start"] if cd_event["start_type"] == 'datetime' else datetime.datetime(cd_event["start"].year, cd_event["start"].month, cd_event["start"].day, tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
-                cd_event["end"] =ical_event["DTEND"].dt
+                cd_event["start_d"] = (
+                    cd_event["start"].date()
+                    if cd_event["start_type"] == "datetime"
+                    else cd_event["start"]
+                )
+                cd_event["start_dt"] = (
+                    cd_event["start"]
+                    if cd_event["start_type"] == "datetime"
+                    else datetime.datetime(
+                        cd_event["start"].year,
+                        cd_event["start"].month,
+                        cd_event["start"].day,
+                        tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE),
+                    )
+                )
+                cd_event["end"] = ical_event["DTEND"].dt
 
                 try:
                     cd_event["summary"] = ical_event["SUMMARY"]
@@ -1001,81 +1275,122 @@ class IcalendarPage(Page):
                 cd_events.append(cd_event)
                 if uid not in cd_events_grouped:
                     cd_events_grouped[uid] = cd_event
-                    cd_events_grouped[uid]["starts"] = [ cd_event["start"] ]
+                    cd_events_grouped[uid]["starts"] = [cd_event["start"]]
                 else:
-                    cd_events_grouped[uid]["starts"].append( cd_event["start"])
+                    cd_events_grouped[uid]["starts"].append(cd_event["start"])
                     if cd_event["start"] < cd_events_grouped[uid]["start"]:
                         cd_events_grouped[uid]["start"] = cd_event["start"]
 
-                if ical_event['UID'] == request.GET.get('uid', ""):
-                    context['event'] = cd_event
+                if ical_event["UID"] == request.GET.get("uid", ""):
+                    context["event"] = cd_event
 
-        context["events"] = sorted(cd_events, key = lambda event: event["start_dt"])
+        context["events"] = sorted(cd_events, key=lambda event: event["start_dt"])
 
         cd_events_grouped_list = []
         for uid in cd_events_grouped:
             cd_events_grouped[uid]["starts"].sort()
             cd_events_grouped_list.append(cd_events_grouped[uid])
-        context["events_grouped"] = sorted(cd_events_grouped_list, key=lambda event: event["start_d"])
+        context["events_grouped"] = sorted(
+            cd_events_grouped_list, key=lambda event: event["start_d"]
+        )
 
-        context['datetime_formats'] = {'date':'D Y M d', 'time':'g:iA'}
+        context["datetime_formats"] = {"date": "D Y M d", "time": "g:iA"}
         # if self.calendar_dt_format:
         #     dt_formats = self.calendar_dt_format.split('|')
         #     context['datetime_formats']['date'] = dt_formats[0]
         #     if len(dt_formats) > 1:
         #         context['datetime_formats']['time'] = dt_formats[1]
-        context['datetime_formats']['datetime'] = "{} {}".format(context['datetime_formats']['date'], context['datetime_formats']['time'])
+        context["datetime_formats"]["datetime"] = "{} {}".format(
+            context["datetime_formats"]["date"], context["datetime_formats"]["time"]
+        )
 
-        context['calendar_refs'] = calendar_refs
+        context["calendar_refs"] = calendar_refs
 
         caldate = datetime.date.today()
-        context['calendar_dates'] = [caldate]
+        context["calendar_dates"] = [caldate]
         for i in range(100):
             caldate = caldate + datetime.timedelta(days=1)
             context["calendar_dates"].append(caldate)
 
-        context['sidebars'] = get_sidebars(request)
+        context["sidebars"] = get_sidebars(request)
         return context
-
-
 
 
 class IcalendarEvent(Orderable, models.Model):
 
-    icalendar=ParentalKey(IcalendarPage, on_delete=models.CASCADE, null=True, related_name="ical_events")
-    summary = models.CharField(max_length=128, help_text="The summary, also used as the title, of the event")
-    description = models.TextField(blank=True, help_text="Details about the event. This won't be seen if the event is linked to an article or url")
-    article = ParentalKey(ArticlePage, blank=True, null=True, on_delete=models.SET_NULL, help_text="An article to link to.  Ensure the url field is blank to use this field")
-    uid=models.CharField(max_length=120,help_text="The UID of the event from ics data")
-    url=models.CharField(max_length=200, blank=True, help_text="The URL to link to. Leave blank if linking to an article using the Article field")
-    date_start=models.DateField('start date', default=datetime.date.today, help_text="When the event starts")
-    time_start=models.TimeField('start time', blank=True, help_text='Start Time - Leave blank for all day events')
-    date_end=models.DateField('end date', default=datetime.date.today, help_text="When the event ends")
-    time_end=models.TimeField('end time', blank=True, help_text='End Time - Leave blank for all day events')
-    use_time = models.BooleanField('use time', default=True, help_text="Use the time field (Uncheck for all day events)" )
+    icalendar = ParentalKey(
+        IcalendarPage, on_delete=models.CASCADE, null=True, related_name="ical_events"
+    )
+    summary = models.CharField(
+        max_length=128, help_text="The summary, also used as the title, of the event"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Details about the event. This won't be seen if the event is linked to an article or url",
+    )
+    article = ParentalKey(
+        ArticlePage,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="An article to link to.  Ensure the url field is blank to use this field",
+    )
+    uid = models.CharField(
+        max_length=120, help_text="The UID of the event from ics data"
+    )
+    url = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="The URL to link to. Leave blank if linking to an article using the Article field",
+    )
+    date_start = models.DateField(
+        "start date", default=datetime.date.today, help_text="When the event starts"
+    )
+    time_start = models.TimeField(
+        "start time",
+        blank=True,
+        help_text="Start Time - Leave blank for all day events",
+    )
+    date_end = models.DateField(
+        "end date", default=datetime.date.today, help_text="When the event ends"
+    )
+    time_end = models.TimeField(
+        "end time", blank=True, help_text="End Time - Leave blank for all day events"
+    )
+    use_time = models.BooleanField(
+        "use time",
+        default=True,
+        help_text="Use the time field (Uncheck for all day events)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     panels = [
         FieldPanel("summary"),
         FieldPanel("description"),
-        MultiFieldPanel([
-            FieldPanel("article"),
-            FieldPanel("url"),
-        ], heading="Link"),
-        MultiFieldPanel([
-            FieldPanel("date_start"),
-            FieldPanel("date_end"),
-            FieldPanel("use_time"),
-            FieldPanel("time_start"),
-            FieldPanel("time_end"),
-        ], heading="Start/End")
+        MultiFieldPanel(
+            [
+                FieldPanel("article"),
+                FieldPanel("url"),
+            ],
+            heading="Link",
+        ),
+        MultiFieldPanel(
+            [
+                FieldPanel("date_start"),
+                FieldPanel("date_end"),
+                FieldPanel("use_time"),
+                FieldPanel("time_start"),
+                FieldPanel("time_end"),
+            ],
+            heading="Start/End",
+        ),
     ]
 
     def get_date_or_datetime(self, the_date, the_time=None):
-        date_format="%Y%m%d"
-        time_format="%H%M"
-        ddt=""
+        date_format = "%Y%m%d"
+        time_format = "%H%M"
+        ddt = ""
 
         ddt = the_date.strftime(date_format)
         if the_time is not None:
@@ -1084,25 +1399,33 @@ class IcalendarEvent(Orderable, models.Model):
         return ddt
 
     def get_vevent(self):
-        vevent="BEGIN:VEVENT\n"
-        vevent=vevent + f"UID:{ self.uid }\n"
-        vevent=vevent + f"SUMMARY:{ self.summary }\n"
+        vevent = "BEGIN:VEVENT\n"
+        vevent = vevent + f"UID:{ self.uid }\n"
+        vevent = vevent + f"SUMMARY:{ self.summary }\n"
 
         tz_insert = ";TZID=" + get_timezone() if get_timezone() else ""
 
         if self.description:
-            vevent=vevent + f"DESCRIPTION:{ self.description }\n"
+            vevent = vevent + f"DESCRIPTION:{ self.description }\n"
         if self.use_time:
-            vevent = vevent + f"DTSTART{ tz_insert }:{ self.get_date_or_datetime(self.date_start, self.time_start) }\n"
-            vevent = vevent + f"DTEND{ tz_insert }:{ self.get_date_or_datetime(self.date_end, self.time_end) }\n"
+            vevent = (
+                vevent
+                + f"DTSTART{ tz_insert }:{ self.get_date_or_datetime(self.date_start, self.time_start) }\n"
+            )
+            vevent = (
+                vevent
+                + f"DTEND{ tz_insert }:{ self.get_date_or_datetime(self.date_end, self.time_end) }\n"
+            )
         else:
-            vevent = vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start) }\n"
+            vevent = (
+                vevent + f"DTSTART:{ self.get_date_or_datetime(self.date_start) }\n"
+            )
             vevent = vevent + f"DTEND:{ self.get_date_or_datetime(self.date_end) }\n"
 
         vevent = vevent + f"DTSTAMP:{ self.created_at.strftime('%Y%m%dT%H%m%S') }\n"
         vevent = vevent + "STATUS:CONFIRMED" + "\n"
 
-        vevent=vevent + "END:VEVENT\n"
+        vevent = vevent + "END:VEVENT\n"
 
         return vevent
 
@@ -1119,18 +1442,34 @@ class IcalendarEvent(Orderable, models.Model):
 
 class IcalendarLinkPage(Orderable, models.Model):
 
-    icalendar=ParentalKey(IcalendarPage, on_delete=models.CASCADE, null=True, related_name="uid_links")
-    article = ParentalKey(ArticlePage, blank=True, null=True, on_delete=models.SET_NULL, help_text="An article to link to.  Ensure the url field is blank to use this field")
-    uid=models.CharField(max_length=120,help_text="The UID of the event from ics data")
-    url=models.CharField(max_length=200, blank=True, help_text="The URL to link to. Leave blank if linking to an article using the Article field")
-    
+    icalendar = ParentalKey(
+        IcalendarPage, on_delete=models.CASCADE, null=True, related_name="uid_links"
+    )
+    article = ParentalKey(
+        ArticlePage,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="An article to link to.  Ensure the url field is blank to use this field",
+    )
+    uid = models.CharField(
+        max_length=120, help_text="The UID of the event from ics data"
+    )
+    url = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="The URL to link to. Leave blank if linking to an article using the Article field",
+    )
+
     panels = [
         FieldPanel("uid"),
-        MultiFieldPanel([
-            FieldPanel("article"),
-            FieldPanel("url"),
-        ], heading="Link")
-
+        MultiFieldPanel(
+            [
+                FieldPanel("article"),
+                FieldPanel("url"),
+            ],
+            heading="Link",
+        ),
     ]
 
     def save(self, *args, **kwargs):
@@ -1141,12 +1480,14 @@ class IcalendarLinkPage(Orderable, models.Model):
         return super().save(*args, **kwargs)
 
 
-
 # Prevent display of certain events
 class IcalendarBlockPage(Orderable, models.Model):
-    icalendar=ParentalKey(IcalendarPage, on_delete=models.CASCADE, null=True, related_name="uid_blocks")
-    uid=models.CharField(max_length=120,help_text="The UID of the event to block, from ics data")    
+    icalendar = ParentalKey(
+        IcalendarPage, on_delete=models.CASCADE, null=True, related_name="uid_blocks"
+    )
+    uid = models.CharField(
+        max_length=120, help_text="The UID of the event to block, from ics data"
+    )
     panels = [
         FieldPanel("uid"),
     ]
-

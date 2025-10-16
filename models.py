@@ -944,19 +944,11 @@ class SiteTemplateSettings(BaseSiteSetting):
         default="black",
         help_text='The theme color. This should match the base name of a css file in a static folder webikwa257/css. Ex "blue" if there is a webikwa257/css/blue.css',
     )
-    footer_text = models.CharField(
+    footer_text = MarkdownField(
         "footer text",
-        max_length=255,
         blank=True,
         default="Created wth Wagtail and webikwa257",
-        help_text="The footer text.  This may be split into a list using footer_text_separator",
-    )
-    footer_text_separator = models.CharField(
-        "footer text separator",
-        max_length=2,
-        blank=True,
-        default=";",
-        help_text="The character by which the footer text will be split into a list.  This is optional",
+        help_text="The footer in markdown",
     )
     favicon = models.CharField(
         "path to favicon",

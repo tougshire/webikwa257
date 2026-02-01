@@ -9,10 +9,18 @@ from taggit.models import Tag
 from django.templatetags.static import static
 from django.utils.html import format_html
 
+import django_filters
+
 @hooks.register("register_icons")
 def register_icons(icons):
     return icons + ['webikwa257/article.svg']
 
+
+class ArticlePageFilterSet(PageListingViewSet.filterset_class):
+    tags = django_filters.ModelMultipleChoiceFilter(queryset = Tag.objects.all().order_by('name') )
+    class Meta:
+        model = ArticlePage
+        fields = ["tags",]
 
 class ArticlePageListingViewSet(PageListingViewSet):
     icon = "article"
@@ -21,7 +29,8 @@ class ArticlePageListingViewSet(PageListingViewSet):
     add_to_admin_menu = True
     model = ArticlePage
     columns = PageListingViewSet.columns + [Column("get_tags","Tags")]
-
+    filterset_class = ArticlePageFilterSet
+    
 
 
 article_page_listing_viewset = ArticlePageListingViewSet("article_pages")

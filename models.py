@@ -1310,6 +1310,17 @@ class IcalendarPage(Page):
 
 class IcalendarEvent(Orderable, models.Model):
 
+    def get_default_start():
+        try:
+            return settings.WEBIKWA['default_start_time']
+        except:
+            return '08:00'
+    def get_default_end():
+        try:
+            return settings.WEBIKWA['default_start_time']
+        except:
+            return '20:00'
+
     icalendar = ParentalKey(
         IcalendarPage, on_delete=models.CASCADE, null=True, related_name="ical_events"
     )
@@ -1341,13 +1352,16 @@ class IcalendarEvent(Orderable, models.Model):
     time_start = models.TimeField(
         "start time",
         blank=True,
+        null=True,
+        default=get_default_start,
         help_text="Start Time - Leave blank for all day events",
     )
     date_end = models.DateField(
         "end date", default=datetime.date.today, help_text="When the event ends"
+
     )
     time_end = models.TimeField(
-        "end time", blank=True, help_text="End Time - Leave blank for all day events"
+        "end time", blank=True, null=True, default=get_default_end, help_text="End Time - Leave blank for all day events"
     )
     use_time = models.BooleanField(
         "use time",

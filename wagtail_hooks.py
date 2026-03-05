@@ -1,6 +1,7 @@
 from wagtail_modeladmin.options import ModelAdmin, modeladmin_register, hooks
+from wagtail.admin.viewsets.base import ViewSet
 from wagtail.admin.viewsets.pages import PageListingViewSet
-from .models import ArticlePage, IcalCombinerPage, IcalendarPage, SidebarArticlePage
+from .models import ArticlePage, ArticlePlacement, IcalCombinerPage, IcalendarPage, SidebarArticlePage
 from wagtail.admin.ui.tables import Column
 from wagtail.admin.panels import FieldPanel
 from wagtail.snippets.models import register_snippet
@@ -35,6 +36,8 @@ article_page_listing_viewset = ArticlePageListingViewSet("article_pages")
 @hooks.register("register_admin_viewset")
 def register_article_page_listing_viewset():
     return article_page_listing_viewset
+
+
 
 class SidebarArticlePageListingViewSet(PageListingViewSet):
     icon = "article"

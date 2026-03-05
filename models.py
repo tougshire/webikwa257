@@ -28,6 +28,7 @@ from wagtail.admin.panels import (
     MultiFieldPanel,
     PageChooserPanel,
 )
+from wagtail.admin.ui.tables import Column
 from wagtail.contrib.forms.forms import FormBuilder
 from wagtail.contrib.forms.models import (
     FORM_FIELD_CHOICES,
@@ -48,6 +49,7 @@ from wagtail.images.models import Image as WagtailImage
 from wagtail.models import Orderable, Page
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
+from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtailmarkdown.fields import MarkdownField
 
 from .blocks import BodyStreamBlock
@@ -521,7 +523,7 @@ class ArticlePlacementPage(Page):
             zones[z]['title'] = zone_titles[z] if z in zone_titles else ""
             zones[z]['class'] = f"zone_{ z }"
             zones[z]['full_body'] = True if z in full_body_zones else False
-            zones[z]['placements'] = [ placement for placement in self.article_placements.all() if placement.zone == z]
+            zones[z]['placements'] = [ placement for placement in self.article_placements.filter(zone=z).exclude(expiration_date__lt=datetime.date.today())]
 
         context['zones'] = zones
 
@@ -663,7 +665,6 @@ class ArticlePage(BaseArticlePage):
 
         return context
 
-@register_snippet
 class ArticlePlacement(models.Model):
     article = ParentalKey(ArticlePage, related_name="article_placements")
     page = models.ForeignKey(ArticlePlacementPage, on_delete=models.CASCADE, related_name="article_placements")
@@ -674,8 +675,17 @@ class ArticlePlacement(models.Model):
         return f"{ self.article }->{ self.page }:{self.zone }"
 
     class Meta:
-        ordering=('page', 'zone')
+        ordering=('page', 'zone', 'article')
 
+
+class ArticlePlacementViewSet(SnippetViewSet):
+    model = ArticlePlacement
+    list_display = [ "article", "page", "zone", "expiration_date" ]
+    inspect_view_enabled = True
+    
+    list_filter = {"page": ["exact"], "expiration_date": ["lt"] }
+
+register_snippet(ArticlePlacementViewSet)
 
 class IcalCombinerPage(BaseArticlePage):
 

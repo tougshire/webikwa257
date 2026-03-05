@@ -454,6 +454,101 @@ class ArticleStaticTagsHelpPanel(HelpPanel):
             content = content + "</table></div>"
             self.content = content
 
+class ArticlePlacementPageListPanel(HelpPanel):
+
+    class BoundPanel(HelpPanel.BoundPanel):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            content = '<div class="help_placement_page_list"><h3>Available Placement Pages</h3>'
+            content = content + "<table><tr><th>page</th><th>zones</th><th>titles</th></tr>"
+            aplaces = ArticlePlacementPage.objects.all()
+            for page in aplaces:
+                content = content + format_html(
+                    "<tr><td>{}:  </td><td>{}</td><td>{}</td></tr>",
+                    page.slug,
+                    page.zone_qty,
+                    mark_safe(page.zone_titles)
+                )
+
+            content = content + "</table></div>"
+            self.content = content
+
+
+
+class ArticlePlacementPage(Page):
+
+    show_pagetitle = models.BooleanField(
+        default=True, help_text="If the page title should be shown"
+    )
+    zone_qty = models.IntegerField("number of zones", default=5, help_text="The number of zones on the page")
+    full_body_zones = models.CharField(
+        "full body zones",
+        max_length=30,
+        blank=True,
+        default="1",
+        help_text="A comma separated one-based list of the zone numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third zones, the body will be shown instead of the summary",
+    )
+    zone_titles = models.TextField(blank=True, help_text='Titles for zones, one per line, starting each line with the zone number and a colon, and optionally a space ex: "1: Featured Articles" ')
+    custom_css = models.TextField(
+        blank=True,
+        help_text='Custom css to be added to the html head section when this page is displayed. Zones will have class names in the format of "zone_1" where "1" is replaced by the zone number',
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel("show_pagetitle"),
+        FieldPanel("zone_qty"),
+        FieldPanel("full_body_zones"),
+        FieldPanel("zone_titles"),
+        FieldPanel("custom_css"),
+    ]
+
+    def get_context(self, request):
+
+        context = super().get_context(request)
+
+        zone_title_lines = self.zone_titles.split("\n")
+        zone_titles = {}
+        for line in zone_title_lines:
+            parts = line.split(":")
+            if len(parts) > 1 and parts[0].strip().isdigit():
+                zone_titles[ int(parts[0].strip()) ] = parts[1] 
+
+        full_body_zones = [ int( z.strip() ) for z in self.full_body_zones.split(",") if z.strip().isdigit() ]
+
+        zones = []
+        for z in range ( self.zone_qty + 1 ):
+            zones.append( {} )
+            zones[z]['title'] = zone_titles[z] if z in zone_titles else ""
+            zones[z]['class'] = f"zone_{ z }"
+            zones[z]['full_body'] = True if z in full_body_zones else False
+            zones[z]['placements'] = [ placement for placement in self.article_placements.all() if placement.zone == z]
+
+        context['zones'] = zones
+
+        context["sidebars"] = get_sidebars(request)
+
+        return context
+
+class ArticleStaticTagsHelpPanel(HelpPanel):
+
+    class BoundPanel(HelpPanel.BoundPanel):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            content = '<div class="help_static_tag_list"><h3>Tags used in Static Tags Index Pages</h3>'
+            content = content + "<table><tr><th>page</th><th>tags</th></tr>"
+            astips = ArticleStaticTagsIndexPage.objects.all()
+            for page in astips:
+                tag_content = html.escape(
+                    re.sub(r"(,|;)\s*", r"\1 ", page.included_tag_names_string)
+                ).replace(";", ";<br/>")
+                content = content + format_html(
+                    "<tr><td>{}:  </td><td>{}</td></tr>",
+                    page.slug,
+                    mark_safe(tag_content),
+                )
+
+            content = content + "</table></div>"
+            self.content = content
 
 class ImageUrlHelpPanel(HelpPanel):
 
@@ -495,9 +590,15 @@ class ArticlePage(BaseArticlePage):
                 FieldPanel("date"),
                 FieldPanel("authors", widget=forms.CheckboxSelectMultiple),
                 FieldPanel("tags"),
-                ArticleStaticTagsHelpPanel(),
             ],
             heading="Article information",
+        ),
+        MultiFieldPanel(
+            [
+                InlinePanel("article_placements"),
+                ArticlePlacementPageListPanel(),
+            ],
+            heading="Placement"
         ),
         FieldPanel("summary"),
         FieldPanel("body_md"),
@@ -523,6 +624,7 @@ class ArticlePage(BaseArticlePage):
             ],
             heading="Embedded Content",
         ),
+        ArticleStaticTagsHelpPanel(),
     ]
 
     search_fields = Page.search_fields + [
@@ -537,6 +639,11 @@ class ArticlePage(BaseArticlePage):
     def get_tags(self):
         tag_list = [tag.name for tag in self.tags.all().order_by("name")]
         return ",".join(tag_list)
+
+    def get_placements(self):
+        placement_list = [ f"{placement.page}:{placement.zone}" for placement in self.article_placements.all() ]
+        print('tpva34z54', placement_list)
+        return "; ".join(placement_list)
 
     def get_context(self, request):
         context = super().get_context(request)
@@ -555,6 +662,19 @@ class ArticlePage(BaseArticlePage):
             pass
 
         return context
+
+@register_snippet
+class ArticlePlacement(models.Model):
+    article = ParentalKey(ArticlePage, related_name="article_placements")
+    page = models.ForeignKey(ArticlePlacementPage, on_delete=models.CASCADE, related_name="article_placements")
+    zone = models.IntegerField(default=1, help_text="The zone on the page.  If the number entered is greater than the number of zones on the page, the last zone will be used")
+    expiration_date = models.DateField("Expiration Date", blank=True, null=True, help_text="The date after which the article will be removed from this page zone. This is only takes affect when remove_exipred_placements is run")
+
+    def __str__(self):
+        return f"{ self.article }->{ self.page }:{self.zone }"
+
+    class Meta:
+        ordering=('page', 'zone')
 
 
 class IcalCombinerPage(BaseArticlePage):

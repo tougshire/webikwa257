@@ -1,18 +1,13 @@
-.help_static_tag_list table {
+.help_placement_page_list table, .help_static_tag_list table {
+
     border-collapse: collapse;
     border-spacing: 1em 0;
 	
 }
-.help_static_tag_list td, .help_static_tag_list th  {
+
+.help_placement_page_list td, .help_placement_page_list th, .help_static_tag_list td, .help_static_tag_list th  {
 	border:1px solid #555;
 	padding-left:.5em;
 	padding-right:.5em;
+  text-align: left;
 }
-
-/*span.help_static_tag:after {
-    content: ', '
-}
-
-span.help_static_tag:last-child:after {
-    content: ''
-}*/

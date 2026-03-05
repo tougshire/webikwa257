@@ -15,12 +15,11 @@ import django_filters
 def register_icons(icons):
     return icons + ['webikwa257/article.svg']
 
-
 class ArticlePageFilterSet(PageListingViewSet.filterset_class):
     tags = django_filters.ModelMultipleChoiceFilter(queryset = Tag.objects.all().order_by('name') )
     class Meta:
         model = ArticlePage
-        fields = ["tags",]
+        fields = ["tags","article_placements__page"]
 
 class ArticlePageListingViewSet(PageListingViewSet):
     icon = "article"
@@ -28,9 +27,8 @@ class ArticlePageListingViewSet(PageListingViewSet):
     menu_label = "Articles"
     add_to_admin_menu = True
     model = ArticlePage
-    columns = PageListingViewSet.columns + [Column("get_tags","Tags")]
+    columns = PageListingViewSet.columns + [Column("get_tags","Tags"), Column("get_placements", "Placements")]
     filterset_class = ArticlePageFilterSet
-    
 
 
 article_page_listing_viewset = ArticlePageListingViewSet("article_pages")

@@ -643,9 +643,13 @@ class ArticlePage(BaseArticlePage):
         return ",".join(tag_list)
 
     def get_placements(self):
-        placement_list = [ f"{placement.page}:{placement.zone}" for placement in self.article_placements.all() ]
-        print('tpva34z54', placement_list)
-        return "; ".join(placement_list)
+        placement_list = []
+        for placement in self.article_placements.all():
+            placement_line = f"{placement.page}:{placement.zone}"
+            if placement.expiration_date is not None and placement.expiration_date < datetime.date.today():
+                placement_line = placement_line + " (expired)"
+            placement_list.append(placement_line)
+        return placement_list
 
     def get_context(self, request):
         context = super().get_context(request)

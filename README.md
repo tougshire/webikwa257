@@ -55,10 +55,10 @@ WAGTAILMARKDOWN = {
   - using the "add child page" action next to the word "Root", create a new article index page
   - title it "Articles"
   - publish the page
-- create a new article static tags index page
-  - from the root page, create a new article static tags index page
+- create a new article placement page
+  - from the root page, create a new article placement page
   - title it "Featured Articles"
-  - under "Tags included" enter: \_featured1,\_featured2;\_featured3,\_featured4;\_featured5
+  - Note that by default, the page has five zones and zone 1 is selected as a full body zone.  
   - publish the page
 - create a new redirect page
   - from root, create a new redirect page
@@ -79,8 +79,14 @@ WAGTAILMARKDOWN = {
 
 ### Adding featured articles
 
-- Add articles by clicking "Articles" in the sidebar. Tag each with one of "\_f1", "\_f2", "\_f3", or ""\_f4". Publish each article
-  - Note that because \_f1 and \_f2 are both in the first tag group (you grouped tags with with semicolons in an earlier step), and because "show body instead of summary" was 1, the entire body is shown instead of the summary for articles with those tags
+- Add articles by clicking "Articles" in the sidebar. 
+- For each article
+  - Add some text in the summary section
+  - Add some text in the body section, using markdown
+  - In the section for article placements, add an article placement.  Click the link labeled "Choose a page", and select the featured articles page
+  - Select a zone
+  - Publish the page
+- Note that for articles in zones selected as full-body zones (zone 1 by default), the body of the article displays.  For articles in other zones, the summary displays.
 
 ### Adding sidebar articles
 

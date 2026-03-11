@@ -523,7 +523,7 @@ class ArticlePlacementPage(Page):
             zones[z]['title'] = zone_titles[z] if z in zone_titles else ""
             zones[z]['class'] = f"zone_{ z }"
             zones[z]['full_body'] = True if z in full_body_zones else False
-            zones[z]['placements'] = [ placement for placement in self.article_placements.filter(zone=z).exclude(expiration_date__lt=datetime.date.today())]
+            zones[z]['placements'] = [ placement for placement in self.article_placements.filter(article__live=True).filter(zone=z).exclude(expiration_date__lt=datetime.date.today())]
 
         context['zones'] = zones
 

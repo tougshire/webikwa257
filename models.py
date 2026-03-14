@@ -133,14 +133,14 @@ class ArticleIndexPage(Page):
 
     def get_context(self, request):
 
-        tag = request.GET.get("tag")
+        tag = request.GET.getlist("tag")
 
         context = super().get_context(request)
 
         #        ArticlePages = self.get_children().specific().live()
-        ArticlePages = ArticlePage.objects.live()
+        ArticlePages = ArticlePage.objects.live().order_by('-last_published_at')
         if tag:
-            ArticlePages = ArticlePage.objects.filter(tags__name=tag)
+            ArticlePages = ArticlePages.filter(tags__name__in=tag).order_by('last_published_at')
 
         context["articlepages"] = ArticlePages
 
@@ -400,9 +400,9 @@ class ArticleStaticTagsIndexPage(Page):
                 new_article_page_set = {}
 
                 new_article_page_set["article_pages"] = (
-                    ArticlePage.objects.live()
+                    ArticlePage.objects.live().
                     .filter(tags__name=included_tag_name)
-                    .order_by("-date")
+                    .order_by("-last_published_at")
                 )
 
                 if new_article_page_set["article_pages"]:
@@ -637,6 +637,7 @@ class ArticlePage(BaseArticlePage):
 
     class Meta:
         verbose_name = "Article"
+        ordering = ("-last_published_at",)
 
     def get_tags(self):
         tag_list = [tag.name for tag in self.tags.all().order_by("name")]

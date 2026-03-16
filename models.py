@@ -400,7 +400,7 @@ class ArticleStaticTagsIndexPage(Page):
                 new_article_page_set = {}
 
                 new_article_page_set["article_pages"] = (
-                    ArticlePage.objects.live().
+                    ArticlePage.objects.live()
                     .filter(tags__name=included_tag_name)
                     .order_by("-last_published_at")
                 )

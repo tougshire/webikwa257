@@ -736,7 +736,7 @@ class IcalCombinerPage(BaseArticlePage):
 
             start_input, span_input, count_input = [0, 3660, None]
             ical_inputs = [
-                int(num) if num.strip().isnumeric() else None
+                int(num) if num.strip().lstrip('-').isnumeric() else None
                 for num in self.ical_start_span_count.split(",")
             ]
             cd_events = []
@@ -756,7 +756,7 @@ class IcalCombinerPage(BaseArticlePage):
             except (TypeError, IndexError):
                 pass
 
-            start_date = datetime.datetime.now() + datetime.timedelta(start_input)
+            start_date = datetime.datetime.now() + datetime.timedelta(days=start_input)
 
             if span_input is None:
                 span_input = 3660

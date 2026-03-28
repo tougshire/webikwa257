@@ -476,20 +476,12 @@ class ArticlePlacementPageListPanel(HelpPanel):
             self.content = content
 
 
-
 class ArticlePlacementPage(Page):
 
     show_pagetitle = models.BooleanField(
         default=True, help_text="If the page title should be shown"
     )
     zone_qty = models.IntegerField("number of zones", default=5, help_text="The number of zones on the page")
-    full_body_zones = models.CharField(
-        "full body zones",
-        max_length=30,
-        blank=True,
-        default="1",
-        help_text="A comma separated one-based list of the zone numbers for which the full body instead of summary should be shown in an index page.  ex: '1,3' means that for articles in the first and third zones, the body will be shown instead of the summary",
-    )
     zone_titles = models.TextField(blank=True, help_text='Titles for zones, one per line, starting each line with the zone number and a colon, and optionally a space ex: "1: Featured Articles" ')
     custom_css = models.TextField(
         blank=True,
@@ -499,7 +491,6 @@ class ArticlePlacementPage(Page):
     content_panels = Page.content_panels + [
         FieldPanel("show_pagetitle"),
         FieldPanel("zone_qty"),
-        FieldPanel("full_body_zones"),
         FieldPanel("zone_titles"),
         FieldPanel("custom_css"),
     ]
@@ -515,14 +506,11 @@ class ArticlePlacementPage(Page):
             if len(parts) > 1 and parts[0].strip().isdigit():
                 zone_titles[ int(parts[0].strip()) ] = parts[1] 
 
-        full_body_zones = [ int( z.strip() ) for z in self.full_body_zones.split(",") if z.strip().isdigit() ]
-
         zones = []
         for z in range ( self.zone_qty + 1 ):
             zones.append( {} )
             zones[z]['title'] = zone_titles[z] if z in zone_titles else ""
             zones[z]['class'] = f"zone_{ z }"
-            zones[z]['full_body'] = True if z in full_body_zones else False
             zones[z]['placements'] = [ placement for placement in self.article_placements.filter(article__live=True).filter(zone=z).exclude(expiration_date__lt=datetime.date.today()).order_by("-article__last_published_at")]
 
         context['zones'] = zones
@@ -674,6 +662,8 @@ class ArticlePlacement(models.Model):
     article = ParentalKey(ArticlePage, related_name="article_placements")
     page = models.ForeignKey(ArticlePlacementPage, on_delete=models.CASCADE, related_name="article_placements")
     zone = models.IntegerField(default=1, help_text="The zone on the page.  If the number entered is greater than the number of zones on the page, the last zone will be used")
+    show_body = models.BooleanField("show full body", default=False, help_text="Show the body instead the summary")
+    boldness = models.CharField("boldness", choices=(("bold", "Bold"),("normal","Normal"),("light","Light"),), default="normal", help_text="A signal to the template about how to style this article on this page, from Very Bold to Very Light")
     expiration_date = models.DateField("Expiration Date", blank=True, null=True, help_text="The date after which the article will be removed from this page zone. This is only takes affect when remove_exipred_placements is run")
 
     def __str__(self):

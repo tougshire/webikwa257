@@ -1,4 +1,3 @@
-from wagtail_modeladmin.options import ModelAdmin, modeladmin_register, hooks
 from wagtail.admin.viewsets.base import ViewSet
 from wagtail.admin.viewsets.pages import PageListingViewSet
 from .models import ArticlePage, ArticlePlacement, IcalCombinerPage, IcalendarPage, SidebarArticlePage
@@ -9,6 +8,7 @@ from wagtail.snippets.views.snippets import SnippetViewSet
 from taggit.models import Tag
 from django.templatetags.static import static
 from django.utils.html import format_html
+from wagtail import hooks
 
 import django_filters
 

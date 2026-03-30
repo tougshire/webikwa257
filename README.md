@@ -1,6 +1,6 @@
 # Webikwa257
 
-Webikwa257 is a blog app for Wagtail
+Webikwa257 is a configuration of Wagtail
 
 ## Important Note
 
@@ -8,14 +8,13 @@ This project is in development and there may be breaking changes until this note
 
 ## Installation
 
-Webikwa257 requires webikwa_templates, touglates and wagtail_modeladmin. If you're using a different template app than webikwa_templates, you can substitute that app
+Webikwa257 requires webikwa_templates and touglates. If you're using a different template app than webikwa_templates, you can substitute that app
 
 These instructions are written with the assumption that you're starting a new project
 
 - create a new Wagtail project (see [Wagtail's instructions](https://docs.wagtail.org/en/v6.2.1/getting_started/) )
   - This will work if you stop after creating the superuser, but the rest of the tutorial covers features that might be useful 
 - pip install [wagtail-markdown](https://pypi.org/project/wagtail-markdown/)
-- pip install [wagtail_modeladmin](https://pypi.org/project/wagtail-modeladmin/)
 - pip install [recurring-ical-events](https://pypi.org/project/recurring-ical-events/)
 - pip install [nh3](https://pypi.org/project/nh3/)
 - git clone [https://github.com/tougshire/touglates](https://github.com/tougshire/touglates)
@@ -23,7 +22,6 @@ These instructions are written with the assumption that you're starting a new pr
 - git clone [https://github.com/tougshire/webikwa257](https://github.com/tougshire/webikwa257)
 - add the following to INSTALLED_APPS in settings/base.py:
   - "wagtail.contrib.settings",
-  - "wagtail_modeladmin",
   - "wagtailmarkdown",
   - "wagtail.contrib.table_block",
   - "touglates",
@@ -58,7 +56,6 @@ WAGTAILMARKDOWN = {
 - create a new article placement page
   - from the root page, create a new article placement page
   - title it "Featured Articles"
-  - Note that by default, the page has five zones and zone 1 is selected as a full body zone.  
   - publish the page
 - create a new redirect page
   - from root, create a new redirect page
@@ -84,9 +81,10 @@ WAGTAILMARKDOWN = {
   - Add some text in the summary section
   - Add some text in the body section, using markdown
   - In the section for article placements, add an article placement.  Click the link labeled "Choose a page", and select the featured articles page
+  - Select different options for boldness and show full body. Choose options so different articles have different options
   - Select a zone
   - Publish the page
-- Note that for articles in zones selected as full-body zones (zone 1 by default), the body of the article displays.  For articles in other zones, the summary displays.
+- Note how articles are displayed differently depending on the boldness and show body selections.
 
 ### Adding sidebar articles
 

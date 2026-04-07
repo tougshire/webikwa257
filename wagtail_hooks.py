@@ -95,3 +95,8 @@ register_snippet(TagsSnippetViewSet)
 @hooks.register('insert_global_admin_css')
 def global_admin_css():
     return format_html('<link rel="stylesheet" href="{}">', static('webikwa257/admin/css/webikwa257.css'))
+
+
+@hooks.register('insert_global_admin_js')
+def global_admin_js():
+    return format_html('<script src="{}"></script>', static('webikwa257/admin/js/webikwa257.js'))

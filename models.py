@@ -545,15 +545,36 @@ class ImageUrlHelpPanel(HelpPanel):
     class BoundPanel(HelpPanel.BoundPanel):
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
-            print("tp25acl50", self)
 
             try:
-                print("tp25acl42", self.instance.image.file)
                 url = self.instance.image.file.url
-                content = f'<a href="{ url }" target="_new">{ url }</a>'
-                self.content = content
+                alt_text = html.escape(self.instance.alt_text.replace('"',"'"))
+                instid = self.instance.id
+                content='''
+                    <div>
+                        <div class="help_image_url">
+                            <label class="w-field__label">Standard Image</label>
+                            <span class="help_image_url">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; /&gt;</span>
+                            <button type="button" class="copy_image_url">copy</button>
+                        </div>
+                        <div class="help_image_url" >
+                            <label class="w-field__label">Left Image</label>
+                            <span class="help_image_url">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;left&quot;/&gt;</span>
+                            <button type="button" class="copy_image_url">copy</button>
+                        </div>
+                        <div class="help_image_url" >
+                            <label class="w-field__label">Right Image</label>
+                            <span class="help_image_url">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;right&quot;/&gt;</span>
+                            <button type="button" class="copy_image_url">copy</button>
+                        </div>
+                        <div>
+                        <p class="help">To display the image in the body, copy one of the above code snippets into the appropriate lcoation in the body</p>
+                        </div>
+                    </div>
+                '''
+                self.content = content.format( instid=instid, url=url, alt_text=alt_text )
             except WagtailImage.DoesNotExist as e:
-                print("tp25ad550", e, type(e))
+                print(e, type(e))
 
 
 class ArticlePage(BaseArticlePage):
@@ -928,7 +949,6 @@ class ArticlePageImage(Orderable):
     )
 
     panels = [
-        ImageUrlHelpPanel(),
         MultiFieldPanel(
             [
                 FieldPanel("image"),
@@ -944,6 +964,7 @@ class ArticlePageImage(Orderable):
                 FieldPanel("is_featured"),
             ]
         ),
+        ImageUrlHelpPanel(),
     ]
 
 

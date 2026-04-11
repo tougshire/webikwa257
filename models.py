@@ -555,17 +555,10 @@ class ImageUrlHelpPanel(HelpPanel):
                         <div class="help_image_url">
                             <div>
                                 <label class="w-field__label">Image Code</label>
-                                <span class="help_image_url_snippet" name="image_url" data-default="&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;&quot /&gt;">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;sidedefault widthdefault&quot; /&gt;</span>
                             </div>
                             <div>
-                                <select class="w-field" name="set_image_classfloat">
-                                    <option value="sidedefault">Default</option>
-                                    <option value="sidecenter">Center</option>
-                                    <option value="sideleft">Left</option>
-                                    <option value="sideright">Right</option>
-                                </select>
                                 <select class="w-field" name="set_image_classwidth">
-                                    <option value="widthstandard">Standard</option>
+                                    <option value="widthstandard">Width</option>
                                     <option value="widthverysmall">Very Small</option>
                                     <option value="widthsmall">Small</option>
                                     <option value="widthmediumsmall">Medium Small</option>
@@ -573,9 +566,16 @@ class ImageUrlHelpPanel(HelpPanel):
                                     <option value="widthlarge">Large</option>
                                     <option value="widthverylarge">Very Large</option>
                                 </select>
+                                <select class="w-field" name="set_image_classfloat">
+                                    <option value="sidedefault">Location</option>
+                                    <option value="sidecenter">Center</option>
+                                    <option value="sideleft">Left</option>
+                                    <option value="sideright">Right</option>
+                                </select>
                                 <p class="help">
                                     To display the image in the body, choose a size and location, then copy the above code snippet into the appropriate lcoation in the body
                                 </p>
+                                <span class="help_image_url_snippet" name="image_url" data-default="&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;&quot /&gt;">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;sidedefault widthdefault&quot; /&gt;</span>
                                 <button type="button" class="help_image_url_copy" name="copy_image_url">copy snippet</button>
                             </div>
                         </div>

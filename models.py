@@ -609,7 +609,6 @@ class ArticlePage(BaseArticlePage):
             [
                 FieldPanel("date"),
                 FieldPanel("authors", widget=forms.CheckboxSelectMultiple),
-                FieldPanel("tags"),
             ],
             heading="Article information",
         ),
@@ -701,6 +700,15 @@ class ArticlePlacement(models.Model):
 
     class Meta:
         ordering=('page', 'zone', 'article')
+
+    panels = [
+        FieldPanel("page", widget=forms.Select),
+        "zone",
+        "show_body",
+        "boldness",
+        "expiration_date",
+
+    ]
 
 
 class ArticlePlacementViewSet(SnippetViewSet):

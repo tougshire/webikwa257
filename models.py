@@ -749,6 +749,11 @@ class IcalCombinerPage(BaseArticlePage):
         default="D Y M d|g:iA",
         help_text="The date and time formats separated by a bar ex: D Y M d|g:iA",
     )
+    show_hide_calendars = models.BooleanField(
+        "show the hide calendars option",
+        default=True,
+        help_text="When more than one calendar is combined, show the option that allows the user to hide certain calendars"
+    )
 
     parent_page_types = ["SidebarPage", "ArticleSingularPage"]
 
@@ -760,6 +765,7 @@ class IcalCombinerPage(BaseArticlePage):
             [
                 FieldPanel("calendars"),
                 FieldPanel("ical_start_span_count"),
+                FieldPanel("show_hide_calendars"),
                 FieldPanel("calendar_dt_format"),
             ],
             heading="Calendar",
@@ -769,6 +775,7 @@ class IcalCombinerPage(BaseArticlePage):
     def get_context(self, request):
 
         context = super().get_context(request)
+        
 
         if self.calendars:
 
@@ -897,6 +904,8 @@ class IcalCombinerPage(BaseArticlePage):
             )
 
             context["calendar_refs"] = calendar_refs
+
+            context['show_hide_calendars'] = self.show_hide_calendars
 
             caldate = start_date
             context["calendar_dates"] = [caldate]
@@ -1468,6 +1477,7 @@ class IcalendarPage(Page):
             context["calendar_dates"].append(caldate)
 
         context["sidebars"] = get_sidebars(request)
+
         return context
 
 

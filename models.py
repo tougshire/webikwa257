@@ -575,6 +575,7 @@ class ImageUrlHelpPanel(HelpPanel):
                                 <p class="help">
                                     To display the image in the body, choose a size and location, then copy the above code snippet into the appropriate lcoation in the body
                                 </p>
+                                <span class="help_image_url_copy"
                                 <span class="help_image_url_snippet" name="image_url" data-default="&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;&quot /&gt;">&lt;img src=&quot;{url}&quot alt=&quot;{alt_text}&quot; class=&quot;sidedefault widthdefault&quot; /&gt;</span>
                                 <button type="button" class="help_image_url_copy" name="copy_image_url">copy snippet</button>
                             </div>
@@ -1115,6 +1116,29 @@ class SiteTemplateSettings(BaseSiteSetting):
         max_length=30,
         default="black",
         help_text='The theme color. This should match the base name of a css file in a static folder webikwa257/css. Ex "blue" if there is a webikwa257/css/blue.css',
+    )
+    after_article = MarkdownField (
+       "after_article",
+        default='''
+            <div id="after_article">
+                You can share this post on most social media by copying the URL and pasting it into a post.
+                <button type="button" id="copy_url_button">copy url</button>
+            </div>
+            <script>
+                var url_button = document.getElementById("copy_url_button")
+                url_button.addEventListener("click", function(e) {
+                    e.preventDefault()
+                    var url_input = document.createElement("input")
+                    var url_div = document.getElementById("copy_url_div")
+                    url_div.appendChild(url_input)
+                    url_input.value=window.location.href
+                    url_input.select()
+                    document.execCommand("copy")
+                    url_div.removeChild(url_input)
+                })
+            </script>
+        ''',
+        help_text="content to follow each article"
     )
     footer_text = MarkdownField(
         "footer text",

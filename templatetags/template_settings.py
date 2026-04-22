@@ -27,6 +27,7 @@ def get_template_settings(context):
         "show_rightbar",
         "mainmenu_location",
         "theme_color",
+        "after_article",
         "footer_text",
         "favicon",
     }

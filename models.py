@@ -475,6 +475,52 @@ class ArticlePlacementPageListPanel(HelpPanel):
             content = content + "</table></div>"
             self.content = content
 
+class ArticlePageLinkPanel(HelpPanel):
+
+    class BoundPanel(HelpPanel.BoundPanel):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            content_string = '''
+            <div class="help_article_page_list"><h3>Other Articles for Linking</h3>
+            <select id='select_otherarticle'>
+            <option>---</option>
+            '''
+            articles = ArticlePage.objects.live()
+            for page in articles:
+                content_string = content_string + format_html( 
+                    "<option value='{}' data-title=\"{}\" data-link='{}'>{}</option>",
+                    page.id,
+                    page.title.replace('"',''),
+                    page.url,
+                    page.slug
+                )
+
+            content_string = content_string + '''
+            </select>
+            <textarea id="el_otherarticle_link" rows=1></textarea>
+            <div><button id="copy_otherarticle_link">Copy Link</button></div>
+            </div>
+            <script>
+                let select=document.getElementById("select_otherarticle")
+                select.addEventListener("change", function(e) {
+                    if (e.target.value) {
+                        let selop=e.target.selectedOptions[0]
+                        document.getElementById("el_otherarticle_link").innerHTML = "[" + selop.dataset.title + "](" + selop.dataset.link + ")"
+                    } else {
+                        document.getElementById("el_otherarticle_link").innerHTML = ""
+                    }
+                })
+            </script>
+            <script>
+                let button=document.getElementById("copy_otherarticle_link")
+                button.addEventListener("click", function(e) {
+                    e.preventDefault()
+                    document.getElementById("el_otherarticle_link").select()
+                    document.execCommand(copy)
+                })
+            </script>
+            ''' 
+            self.content = mark_safe(content_string)
 
 class ArticlePlacementPage(Page):
 
@@ -645,6 +691,7 @@ class ArticlePage(BaseArticlePage):
             heading="Embedded Content",
         ),
         ArticleStaticTagsHelpPanel(),
+        ArticlePageLinkPanel()
     ]
 
     search_fields = Page.search_fields + [
@@ -943,6 +990,7 @@ class SidebarArticlePage(BaseArticlePage):
             ],
             heading="Embedded Content",
         ),
+        ArticlePageLinkPanel()
     ]
 
 

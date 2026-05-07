@@ -1,5 +1,7 @@
 # Webikwa257
 
+Webikwa257 is depreciated and will no longer be maitained.  Webikwa_264 replaces webikwa257.  
+
 Webikwa257 is a configuration of Wagtail
 
 ## Important Note
